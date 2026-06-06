@@ -14,7 +14,12 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma) {
   const developerNumbers = devNumbersStr.split(',').map(n => n.trim()).filter(Boolean);
 
   if (developerNumbers.includes(phone)) {
-    if (text.startsWith('/approve') || text.startsWith('/reject')) {
+    if (
+      text.startsWith('/approve') ||
+      text.startsWith('/reject') ||
+      text.startsWith('/deactivate') ||
+      text.startsWith('/activate')
+    ) {
       await handleDeveloperWhatsAppCommand(phone, text, prisma);
       return;
     }
@@ -33,6 +38,26 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma) {
   if (!turfOwner) {
     // Unknown number, ignore or reply with standard message
     return whatsappService.sendText(phone, "Hello! This WhatsApp number is not configured on STRIKIT. Please onboard at the STRIKIT number.");
+  }
+
+  // Check trial/subscription expiration
+  if (turfOwner.subscriptionActive && turfOwner.subscriptionExpiry) {
+    const now = new Date();
+    if (now > new Date(turfOwner.subscriptionExpiry)) {
+      await prisma.botOwner.update({
+        where: { id: turfOwner.id },
+        data: { subscriptionActive: false }
+      });
+      turfOwner.subscriptionActive = false;
+    }
+  }
+
+  if (!turfOwner.subscriptionActive) {
+    if (phone === turfOwner.mobile) {
+      return whatsappService.sendText(phone, "Your STRIKIT bot subscription has expired. Please contact developers to renew.");
+    } else {
+      return whatsappService.sendText(phone, "⚠️ This booking bot is temporarily inactive. Please contact turf management directly.");
+    }
   }
 
   // 3. Turf Owner Commands: If the message sender is the owner of this turf
@@ -952,7 +977,7 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
   const command = parts[0].toLowerCase();
   
   if (parts.length < 2) {
-    await whatsappService.sendText(phone, "❌ Format error. Please send: /approve [OwnerId] or /reject [OwnerId]");
+    await whatsappService.sendText(phone, "❌ Format error. Please send: /approve [OwnerId], /reject [OwnerId], /deactivate [OwnerId] or /activate [OwnerId]");
     return;
   }
   
@@ -969,9 +994,12 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
   }
   
   if (command === '/approve') {
+    const trialExpiry = new Date();
+    trialExpiry.setDate(trialExpiry.getDate() + 2); // 2 days trial
+
     await prisma.botOwner.update({
       where: { id: ownerId },
-      data: { verified: true, subscriptionActive: true }
+      data: { verified: true, subscriptionActive: true, subscriptionExpiry: trialExpiry }
     });
 
     await prisma.botSession.upsert({
@@ -981,13 +1009,13 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
     });
 
     // Send confirmation to Developer who approved
-    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been approved successfully!`);
+    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been approved successfully with a 2-day free trial!`);
 
     // Notify Owner on their onboarding number
     await whatsappService.sendText(
       owner.mobile,
       `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
-      `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+      `Your turf *${owner.turfName}* has been verified by the developer and your 2-Day Free Trial is now active!\n\n` +
       `📲 *Final Step:* Please connect your WhatsApp Business Number to this bot now by typing:\n` +
       `👉 \`/connect [WhatsAppNumber]\` (e.g., \`/connect 919876543210\`)\n\n` +
       `_Powered by STRIKIT_`
@@ -995,7 +1023,7 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
   } else if (command === '/reject') {
     await prisma.botOwner.update({
       where: { id: ownerId },
-      data: { verified: false, subscriptionActive: false }
+      data: { verified: false, subscriptionActive: false, subscriptionExpiry: null }
     });
 
     // Send confirmation to Developer who rejected
@@ -1007,5 +1035,37 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
       `❌ Hello ${owner.name}, your STRIKIT registration for *${owner.turfName}* was rejected. Please contact support to check details.\n\n` +
       `_Powered by STRIKIT_`
     );
+  } else if (command === '/deactivate') {
+    await prisma.botOwner.update({
+      where: { id: ownerId },
+      data: { subscriptionActive: false, subscriptionExpiry: new Date() }
+    });
+
+    await whatsappService.sendText(phone, `⚠️ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been deactivated.`);
+
+    // Notify Owner
+    await whatsappService.sendText(
+      owner.mobile,
+      `⚠️ *STRIKIT Notification:* Your bot subscription for *${owner.turfName}* has been deactivated by the admin. Please contact support to reactivate.\n\n` +
+      `_Powered by STRIKIT_`
+    );
+  } else if (command === '/activate') {
+    const activationExpiry = new Date();
+    activationExpiry.setDate(activationExpiry.getDate() + 30); // 30 days activation
+
+    await prisma.botOwner.update({
+      where: { id: ownerId },
+      data: { subscriptionActive: true, subscriptionExpiry: activationExpiry }
+    });
+
+    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been reactivated successfully for 30 days!`);
+
+    // Notify Owner
+    await whatsappService.sendText(
+      owner.mobile,
+      `🎉 *STRIKIT Notification:* Your bot subscription for *${owner.turfName}* has been reactivated successfully for 30 days! 🚀\n\n` +
+      `_Powered by STRIKIT_`
+    );
   }
 }
+

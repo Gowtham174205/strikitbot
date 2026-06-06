@@ -148,9 +148,12 @@ export async function handleTelegramWebhook(req, res, prisma) {
       }
 
       if (action === 'APPROVE') {
+        const trialExpiry = new Date();
+        trialExpiry.setDate(trialExpiry.getDate() + 2); // 2-day free trial
+
         await prisma.botOwner.update({
           where: { id: ownerId },
-          data: { verified: true, subscriptionActive: true }
+          data: { verified: true, subscriptionActive: true, subscriptionExpiry: trialExpiry }
         });
 
         await prisma.botSession.upsert({
@@ -165,7 +168,7 @@ export async function handleTelegramWebhook(req, res, prisma) {
         await whatsappService.sendText(
           owner.mobile,
           `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
-          `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+          `Your turf *${owner.turfName}* has been verified by the developer and your 2-Day Free Trial is now active!\n\n` +
           `📲 *Final Step:* Please connect your WhatsApp Business Number to this bot now by typing:\n` +
           `👉 \`/connect [WhatsAppNumber]\` (e.g., \`/connect 919876543210\`)\n\n` +
           `_Powered by STRIKIT_`
