@@ -1,0 +1,4 @@
+node_modules/
+.env
+reports/*.pdf
+reports/.last_sent_monthly_report.txt
