@@ -2,3 +2,11 @@ node_modules/
 .env
 reports/*.pdf
 reports/.last_sent_monthly_report.txt
+
+# Android and Gradle build directories
+strikit-admin-app/build/
+strikit-admin-app/app/build/
+strikit-admin-app/.gradle/
+strikit-admin-app/local.properties
+.gradle/
+build/

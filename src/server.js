@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { handleWhatsAppWebhook } from './routes/whatsappBot.js';
 import { handleTelegramWebhook, triggerAndSendMonthlyReport } from './routes/telegramBot.js';
 import razorpayRouter from './routes/razorpay.js';
+import adminRouter from './routes/admin.js';
 
 dotenv.config();
 
@@ -106,6 +107,9 @@ app.post('/webhook/telegram', async (req, res) => {
 
 // Mount Razorpay simulator router
 app.use('/razorpay', razorpayRouter);
+
+// Mount Admin API router
+app.use('/api/admin', adminRouter);
 
 app.get('/status', (req, res) => {
   res.json({ status: 'active', time: new Date() });

@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">STRIKIT Admin</string>
+    <string name="title_admin">STRIKIT DEV PANEL</string>
+    <string name="search_hint">Search Turf Name or Phone...</string>
+    <string name="settings_title">API Configuration</string>
+    <string name="server_url_label">Server URL</string>
+    <string name="api_key_label">Admin API Key</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="approve_confirm">Are you sure you want to approve this owner? This will activate a 2-day free trial.</string>
+    <string name="reject_confirm">Are you sure you want to reject/deactivate this owner?</string>
+    <string name="delete_confirm">WARNING: This will completely delete the owner and ALL slots, bookings, join requests, active bot sessions from the database. The bot will stop running on their number immediately. Proceed?</string>
+</resources>

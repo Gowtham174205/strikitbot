@@ -182,17 +182,18 @@ router.post('/mock-join-pay', async (req, res) => {
     });
 
     if (booking) {
-      // Send Join Request notification to Team Captain
-      await whatsappService.sendText(
+      // Send Join Request notification to Team Captain using interactive buttons
+      await whatsappService.sendButtons(
         booking.captainPhone,
         `🔔 *Join Request for your booking at ${booking.slot.owner.turfName}!* 🔔\n\n` +
         `Hello ${booking.captainName}, an individual player wants to join your time slot:\n\n` +
         `• Player Name: *${joinReq.playerName}*\n` +
         `• Booking Slot: ${booking.slot.date} @ ${booking.slot.timeSlot}\n\n` +
-        `Reply to this message with:\n` +
-        `👉 *ACCEPT [Amount]* to accept them and specify what they should pay you directly (e.g. "ACCEPT 150")\n` +
-        `👉 *REJECT* to deny their request.\n\n` +
-        `_Powered by STRIKIT_`
+        `Please select an action:`,
+        [
+          { id: `captain_accept_${joinReq.id}`, title: '✅ Accept' },
+          { id: `captain_reject_${joinReq.id}`, title: '❌ Reject' }
+        ]
       );
     }
 

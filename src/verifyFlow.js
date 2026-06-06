@@ -121,10 +121,10 @@ async function runVerification() {
     if (!verifiedOwner.verified) throw new Error('Owner was not verified by Telegram action');
     assertMessageContains(OWNER_MOBILE, 'APPROVED');
 
-    // 4. Connect WhatsApp Business Number
-    console.log('\n4. Owner connects WhatsApp Business number...');
+    // 4. Connect WhatsApp Business Number (direct number connection)
+    console.log('\n4. Owner connects WhatsApp Business number directly...');
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, `/connect ${BUSINESS_NUMBER}`, prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, BUSINESS_NUMBER, prisma);
     assertMessageContains(OWNER_MOBILE, 'STRIKIT Bot is now active');
 
     const connectedOwner = await prisma.botOwner.findUnique({ where: { id: owner.id } });
@@ -139,12 +139,16 @@ async function runVerification() {
     assertMessageContains(PLAYER_MOBILE, 'Welcome');
 
     // Choose option 1
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '1', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'select a Date');
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'opt_team', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'Select a Date');
 
     // Choose Date (Today)
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '1', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'Slots for');
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, `date_${getTodayDateString()}`, prisma);
+    assertMessageContains(PLAYER_MOBILE, 'Choose a Time Period');
+
+    // Choose period (Evening)
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'period_evening', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'Select an Available Slot');
 
     // Select Slot
     await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '06:00 PM', prisma);
@@ -184,12 +188,16 @@ async function runVerification() {
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Welcome');
 
     // Select Option 2 (Single Player)
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, '2', prisma);
-    assertMessageContains(SINGLE_PLAYER_MOBILE, 'select a Date');
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'opt_single', prisma);
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Select a Date');
 
     // Select Date (Today)
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, '1', prisma);
-    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Booked slots on');
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, `date_${getTodayDateString()}`, prisma);
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Choose a Time Period');
+
+    // Choose period (Evening)
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'period_evening', prisma);
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Select a Slot to Join');
 
     // Select booked slot
     await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, '06:00 PM', prisma);
@@ -222,11 +230,19 @@ async function runVerification() {
     if (!paidJoinReq || paidJoinReq.status !== 'PENDING') throw new Error('Join request status was not updated to PENDING after payment');
     console.log('✅ Join request status updated to PENDING after ₹9 payment');
 
-    // 8. Captain (Player A) Accepts Join Request
-    console.log('\n8. Team Captain accepts request & inputs ₹150 joining fee...');
+    // 8. Captain (Player A) Accepts Join Request via buttons
+    console.log('\n8. Team Captain accepts request via buttons & inputs ₹150 joining fee...');
     clearMockMessages();
     clearMockTelegramMessages();
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'ACCEPT 150', prisma);
+    
+    // Captain clicks Accept button
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, `captain_accept_${joinReq.id}`, prisma);
+    assertMessageContains(PLAYER_MOBILE, 'joining amount');
+
+    // Captain types amount
+    clearMockMessages();
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '150', prisma);
+    
     assertMessageContains(PLAYER_MOBILE, 'accepted');
     assertMessageContains(PLAYER_MOBILE, 'Giri');
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'accepted your request');
@@ -239,7 +255,7 @@ async function runVerification() {
     }
     console.log('✅ Join Request updated to ACCEPTED with amount ₹150');
 
-    // 9. Turf Owner dashboard commands
+    // 9. Turf Owner dashboard commands (commands still supported)
     console.log('\n9. Testing Turf Owner commands...');
     clearMockMessages();
     await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/bookings', prisma);
@@ -279,7 +295,45 @@ async function runVerification() {
     if (!blockedSlot || blockedSlot.status !== 'BLOCKED') throw new Error('Slot block failed');
     console.log('✅ Slot successfully blocked in database');
 
-    // 11. Owner Edit Commands
+    // 10b. Testing Interactive Slot Blocking/Unblocking Toggle Flow...
+    console.log('\n10b. Testing Interactive Slot Blocking/Unblocking Toggle Flow...');
+    clearMockMessages();
+    
+    // Owner triggers dashboard menu
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'hi', prisma);
+    assertMessageContains(OWNER_MOBILE, 'Owner Control Panel');
+
+    // Select dashboard_block_slot
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'dashboard_block_slot', prisma);
+    assertMessageContains(OWNER_MOBILE, 'Select a Date for Block/Unblock');
+
+    // Select Today
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `block_date_${getTodayDateString()}`, prisma);
+    assertMessageContains(OWNER_MOBILE, 'Slot Availability Dashboard');
+
+    // Toggle 08:00 PM slot (Block it)
+    clearMockMessages();
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `toggle_block_${getTodayDateString()}_08:00 PM`, prisma);
+    assertMessageContains(OWNER_MOBILE, 'blocked');
+
+    const toggledBlockedSlot = await prisma.botTurfSlot.findUnique({
+      where: { ownerId_date_timeSlot: { ownerId: owner.id, date: getTodayDateString(), timeSlot: '08:00 PM' } }
+    });
+    if (!toggledBlockedSlot || toggledBlockedSlot.status !== 'BLOCKED') throw new Error('Interactive slot block failed');
+    console.log('   [Pass] Interactive slot block succeeded');
+
+    // Toggle 08:00 PM slot again (Unblock it)
+    clearMockMessages();
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `toggle_block_${getTodayDateString()}_08:00 PM`, prisma);
+    assertMessageContains(OWNER_MOBILE, 'unblocked');
+
+    const toggledOpenSlot = await prisma.botTurfSlot.findUnique({
+      where: { ownerId_date_timeSlot: { ownerId: owner.id, date: getTodayDateString(), timeSlot: '08:00 PM' } }
+    });
+    if (!toggledOpenSlot || toggledOpenSlot.status !== 'AVAILABLE') throw new Error('Interactive slot unblock failed');
+    console.log('   [Pass] Interactive slot unblock succeeded');
+
+    // 11. Owner Edit Commands (manual commands compatibility)
     console.log('\n11. Testing Owner Edit Commands (/edit)...');
     clearMockMessages();
     
@@ -290,7 +344,32 @@ async function runVerification() {
     const ownerNameCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerNameCheck.turfName !== 'New Strikers Turf') throw new Error('Turf name edit failed in DB');
 
-    // Edit Turf Price
+    // 11b. Testing Interactive Settings Editing...
+    console.log('\n11b. Testing Interactive Settings Editing...');
+    clearMockMessages();
+    
+    // Owner triggers menu
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'hi', prisma);
+    assertMessageContains(OWNER_MOBILE, 'Owner Control Panel');
+
+    // Selects "dashboard_edit_settings"
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'dashboard_edit_settings', prisma);
+    assertMessageContains(OWNER_MOBILE, 'Edit Turf Settings');
+
+    // Selects "edit_name"
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'edit_name', prisma);
+    assertMessageContains(OWNER_MOBILE, 'new Turf Name');
+
+    // Types new turf name
+    clearMockMessages();
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'Interactive Strikers Arena', prisma);
+    assertMessageContains(OWNER_MOBILE, 'updated to: *Interactive Strikers Arena*');
+
+    const updatedOwnerCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
+    if (updatedOwnerCheck.turfName !== 'Interactive Strikers Arena') throw new Error('Interactive Turf name edit failed in DB');
+    console.log('   [Pass] Interactive settings edit succeeded');
+
+    // Edit Turf Price (command check)
     await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit price 1500', prisma);
     assertMessageContains(OWNER_MOBILE, 'updated to: *₹1500*');
 
@@ -321,7 +400,7 @@ async function runVerification() {
     const ownerMsmeCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerMsmeCheck.msme !== 'UDYAM-TN-01-0123456') throw new Error('MSME update failed in DB');
 
-    console.log('✅ Turf details (name, price, ownername, photos, gst, msme) successfully updated via commands');
+    console.log('✅ Turf details (name, price, ownername, photos, gst, msme) successfully updated');
 
     // 12. Test Subscription Expiration & Self-Service Renewal
     console.log('\n12. Testing Subscription Expiration and Self-Service Renewal...');
@@ -483,16 +562,27 @@ async function mockJoinPaymentCompleted(requestId) {
   });
   const owner = booking.slot.owner;
 
-  await mockWhatsAppOutgoing(
-    booking.captainPhone,
-    `🔔 *Join Request for your booking!*\n\n` +
-    `A single player wants to play with your team:\n` +
-    `• Player Name: ${joinReq.playerName}\n` +
-    `• Booking Slot: ${booking.slot.date} @ ${booking.slot.timeSlot}\n\n` +
-    `Reply to this message with:\n` +
-    `• *ACCEPT [Amount]* to accept them and specify what they should pay you directly (e.g. "ACCEPT 150")\n` +
-    `• *REJECT* to deny`
-  );
+  // Send Join Request notification to Team Captain using interactive buttons
+  mockSentMessages.push({
+    to: booking.captainPhone,
+    type: 'interactive',
+    interactive: {
+      type: 'button',
+      body: {
+        text: `🔔 *Join Request for your booking at ${owner.turfName}!* 🔔\n\n` +
+              `Hello ${booking.captainName}, an individual player wants to join your time slot:\n\n` +
+              `• Player Name: *${joinReq.playerName}*\n` +
+              `• Booking Slot: ${booking.slot.date} @ ${booking.slot.timeSlot}\n\n` +
+              `Please select an action:`
+      },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: `captain_accept_${joinReq.id}`, title: '✅ Accept' } },
+          { type: 'reply', reply: { id: `captain_reject_${joinReq.id}`, title: '❌ Reject' } }
+        ]
+      }
+    }
+  });
 
   await mockWhatsAppOutgoing(
     joinReq.playerPhone,
