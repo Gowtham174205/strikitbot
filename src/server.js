@@ -57,8 +57,11 @@ app.post('/webhook/whatsapp', async (req, res) => {
       const from = message.from; // sender phone number
       const to = value.metadata?.phone_number_id || value.metadata?.display_phone_number || process.env.ONBOARDING_NUMBER; // receiver number
       
-      // Parse message text, list reply, or button reply
+      // Parse message text, list reply, button reply, image, or document
       let text = '';
+      let mediaId = '';
+      let mediaType = '';
+      
       if (message.type === 'text') {
         text = message.text.body;
       } else if (message.type === 'interactive') {
@@ -68,10 +71,18 @@ app.post('/webhook/whatsapp', async (req, res) => {
         } else if (interactive.type === 'list_reply') {
           text = interactive.list_reply.id;
         }
+      } else if (message.type === 'image') {
+        mediaId = message.image.id;
+        mediaType = 'image';
+        text = message.image.caption || '';
+      } else if (message.type === 'document') {
+        mediaId = message.document.id;
+        mediaType = 'document';
+        text = message.document.caption || '';
       }
 
-      console.log(`[WhatsApp Webhook Received] From: ${from} -> To: ${to} | Text: "${text}"`);
-      await handleWhatsAppWebhook(from, to, text, prisma);
+      console.log(`[WhatsApp Webhook Received] From: ${from} -> To: ${to} | Text: "${text}" | Media: ${mediaType} (${mediaId})`);
+      await handleWhatsAppWebhook(from, to, text, prisma, mediaId, mediaType);
     }
     
     res.sendStatus(200);

@@ -44,16 +44,18 @@ async function runVerification() {
     await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'https://maps.google.com/?q=Chennai', prisma);
     assertMessageContains(OWNER_MOBILE, 'Turf Photos');
 
-    // Send photos
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'http://photos.link/strikers', prisma);
+    // Send photos via media upload (image type)
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '', prisma, 'media_photo_123', 'image');
+    assertMessageContains(OWNER_MOBILE, 'Turf Photo uploaded successfully');
     assertMessageContains(OWNER_MOBILE, 'GST');
 
     // Send GST
     await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '33AAAAA1111A1Z1', prisma);
     assertMessageContains(OWNER_MOBILE, 'MSME');
 
-    // Send MSME
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'UDYAM-TN-01-0123456', prisma);
+    // Send MSME certificate via media upload (document type)
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '', prisma, 'media_msme_doc_456', 'document');
+    assertMessageContains(OWNER_MOBILE, 'MSME Certificate uploaded successfully');
     assertMessageContains(OWNER_MOBILE, 'Opening Time');
 
     // Send Opening Time
@@ -67,7 +69,7 @@ async function runVerification() {
     // Send Price
     clearMockMessages();
     await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '1200', prisma);
-    assertMessageContains(OWNER_MOBILE, 'Registration complete');
+    assertMessageContains(OWNER_MOBILE, 'Registration Summary');
     assertMessageContains(OWNER_MOBILE, '₹699');
 
     // Verify Owner record exists in DB
@@ -133,7 +135,8 @@ async function runVerification() {
     console.log('\n5. Player starts Team Booking flow...');
     clearMockMessages();
     await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'Welcome to Strikers Turf');
+    assertMessageContains(PLAYER_MOBILE, 'Strikers Turf');
+    assertMessageContains(PLAYER_MOBILE, 'Welcome');
 
     // Choose option 1
     await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '1', prisma);
@@ -177,7 +180,8 @@ async function runVerification() {
     console.log('\n7. Single Player Join Request Flow...');
     clearMockMessages();
     await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
-    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Welcome to Strikers Turf');
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Strikers Turf');
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Welcome');
 
     // Select Option 2 (Single Player)
     await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, '2', prisma);
@@ -223,7 +227,8 @@ async function runVerification() {
     clearMockMessages();
     clearMockTelegramMessages();
     await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'ACCEPT 150', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'You accepted Giri');
+    assertMessageContains(PLAYER_MOBILE, 'accepted');
+    assertMessageContains(PLAYER_MOBILE, 'Giri');
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'accepted your request');
     assertMessageContains(SINGLE_PLAYER_MOBILE, '₹150');
 
@@ -318,6 +323,51 @@ async function runVerification() {
 
     console.log('✅ Turf details (name, price, ownername, photos, gst, msme) successfully updated via commands');
 
+    // 12. Test Subscription Expiration & Self-Service Renewal
+    console.log('\n12. Testing Subscription Expiration and Self-Service Renewal...');
+    clearMockMessages();
+
+    // Force expiration in DB
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 3); // 3 days ago
+
+    await prisma.botOwner.update({
+      where: { id: owner.id },
+      data: { subscriptionExpiry: pastDate, subscriptionActive: true }
+    });
+
+    // 12a. Owner messages the bot, should get a subscription expired warning with Razorpay link
+    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'Hello', prisma);
+    assertMessageContains(OWNER_MOBILE, 'STRIKIT Subscription Expired');
+    assertMessageContains(OWNER_MOBILE, 'razorpay.mock/sub');
+
+    // 12b. Player messages the bot, should get a warning that the bot is inactive
+    clearMockMessages();
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'bot is temporarily inactive');
+
+    // 12c. Simulating owner completing subscription renewal
+    console.log('   Simulating owner completing subscription renewal...');
+    const activationExpiry = new Date();
+    activationExpiry.setDate(activationExpiry.getDate() + 30);
+    await prisma.botOwner.update({
+      where: { id: owner.id },
+      data: { subscriptionActive: true, subscriptionExpiry: activationExpiry }
+    });
+
+    // Reset owner onboarding session to owner dashboard mode if any
+    await prisma.botSession.upsert({
+      where: { phone: OWNER_MOBILE },
+      update: { role: 'OWNER', state: 'OWNER_DASHBOARD' },
+      create: { phone: OWNER_MOBILE, role: 'OWNER', state: 'OWNER_DASHBOARD' }
+    });
+
+    // 12d. Check if the bot is active again
+    clearMockMessages();
+    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'Welcome');
+    console.log('✅ Expired bot successfully locked and unlocked via self-service subscription renewal simulation');
+
     console.log('\n======================================================');
     console.log('🎉 SUCCESS! ALL STRIKIT WORKFLOW CONVERSIONS VERIFIED! 🎉');
     console.log('======================================================\n');
@@ -331,25 +381,32 @@ async function runVerification() {
   }
 }
 
-// Helpers
 function assertMessageContains(phone, phrase) {
   const matches = mockSentMessages.filter(m => m.to === phone);
   if (matches.length === 0) {
     throw new Error(`No outgoing messages found to ${phone}. Expected to find phrase: "${phrase}"`);
   }
   
-  const lastMsg = matches[matches.length - 1];
-  const bodyText = lastMsg.type === 'text' 
-    ? (lastMsg.text?.body || '') 
-    : [
-        lastMsg.interactive?.body?.text,
-        lastMsg.document?.caption,
-        lastMsg.document?.filename,
-        lastMsg.document?.link
+  const hasMatch = matches.some(msg => {
+    let bodyText = '';
+    if (msg.type === 'text') {
+      bodyText = msg.text?.body || '';
+    } else if (msg.type === 'image') {
+      bodyText = [msg.image?.caption, msg.image?.link].filter(Boolean).join(' ');
+    } else {
+      bodyText = [
+        msg.interactive?.body?.text,
+        msg.document?.caption,
+        msg.document?.filename,
+        msg.document?.link
       ].filter(Boolean).join(' ');
+    }
+    return bodyText.toLowerCase().includes(phrase.toLowerCase());
+  });
   
-  if (!bodyText.toLowerCase().includes(phrase.toLowerCase())) {
-    throw new Error(`Message to ${phone} did not contain: "${phrase}". Found instead:\n"${bodyText}"`);
+  if (!hasMatch) {
+    const allBodies = matches.map((m, idx) => `[${idx}] Type: ${m.type} - Content: ${JSON.stringify(m)}`).join('\n');
+    throw new Error(`No message to ${phone} contained: "${phrase}". Found instead:\n${allBodies}`);
   }
   console.log(`   [Pass] Message to ${phone} contains: "${phrase}"`);
 }

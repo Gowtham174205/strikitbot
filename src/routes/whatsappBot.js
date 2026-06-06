@@ -5,7 +5,7 @@ import path from 'path';
 
 const ONBOARDING_NUMBER = process.env.ONBOARDING_NUMBER || '919000000000';
 
-export async function handleWhatsAppWebhook(from, to, messageText, prisma) {
+export async function handleWhatsAppWebhook(from, to, messageText, prisma, mediaId = '', mediaType = '') {
   const text = (messageText || '').trim();
   const phone = from;
 
@@ -27,7 +27,7 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma) {
 
   // 1. ROUTING: Check if this message was sent to the STRIKIT Onboarding Number
   if (to === ONBOARDING_NUMBER || to === process.env.WHATSAPP_PHONE_NUMBER_ID) {
-    return handleOnboardingFlow(phone, text, prisma);
+    return handleOnboardingFlow(phone, text, prisma, mediaId, mediaType);
   }
 
   // 2. ROUTING: Check if the receiving number matches a connected Turf Owner business phone
@@ -54,7 +54,15 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma) {
 
   if (!turfOwner.subscriptionActive) {
     if (phone === turfOwner.mobile) {
-      return whatsappService.sendText(phone, "Your STRIKIT bot subscription has expired. Please contact developers to renew.");
+      return whatsappService.sendText(
+        phone,
+        `⚠️ *STRIKIT Subscription Expired* ⚠️\n\n` +
+        `Dear ${turfOwner.name}, your subscription or 2-day free trial for *${turfOwner.turfName}* has expired.\n\n` +
+        `To keep your booking bot active for players, please pay ₹699.00 to renew your monthly subscription:\n\n` +
+        `🔗 *Payment Link:* Click below to pay via Razorpay:\n` +
+        `http://razorpay.mock/sub/${turfOwner.id}\n\n` +
+        `_Powered by STRIKIT_`
+      );
     } else {
       return whatsappService.sendText(phone, "⚠️ This booking bot is temporarily inactive. Please contact turf management directly.");
     }
@@ -79,7 +87,7 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma) {
  * ONBOARDING STATE MACHINE
  * =========================================================================
  */
-async function handleOnboardingFlow(phone, text, prisma) {
+async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType = '') {
   let session = await prisma.botSession.findUnique({
     where: { phone }
   });
@@ -119,14 +127,21 @@ async function handleOnboardingFlow(phone, text, prisma) {
         return;
       }
       context.location = text;
-      await whatsappService.sendText(phone, `Location set. Please upload or provide a link for your Turf Photos (e.g. Google Drive link or text description of photos):`);
+      await whatsappService.sendText(phone, `Location set. Please upload or provide a link for your Turf Photos (e.g. Google Drive link or upload photos directly):`);
       await updateSession(phone, 'AWAITING_PHOTOS', context, prisma);
       break;
 
     case 'AWAITING_PHOTOS':
-      context.photoUrls = text;
-      await whatsappService.sendText(phone, `Photos set. Please enter your 15-character GST Number (GSTIN):`);
-      await updateSession(phone, 'AWAITING_GST', context, prisma);
+      if (mediaType === 'image' || mediaType === 'document') {
+        const mediaUrl = await whatsappService.getMediaUrl(mediaId);
+        context.photoUrls = mediaUrl;
+        await whatsappService.sendText(phone, `✅ Turf Photo uploaded successfully!\n\nPlease enter your 15-character GST Number (GSTIN):`);
+        await updateSession(phone, 'AWAITING_GST', context, prisma);
+      } else {
+        context.photoUrls = text;
+        await whatsappService.sendText(phone, `Photos set. Please enter your 15-character GST Number (GSTIN):`);
+        await updateSession(phone, 'AWAITING_GST', context, prisma);
+      }
       break;
 
     case 'AWAITING_GST':
@@ -137,20 +152,27 @@ async function handleOnboardingFlow(phone, text, prisma) {
         return;
       }
       context.gst = cleanGst;
-      await whatsappService.sendText(phone, `GST registered. Please enter your MSME Udyam Registration Number (Format: UDYAM-XX-00-0000000):`);
+      await whatsappService.sendText(phone, `GST registered. Please enter your MSME Udyam Registration Number (Format: UDYAM-XX-00-0000000) OR upload your MSME Certificate file/image directly:`);
       await updateSession(phone, 'AWAITING_MSME', context, prisma);
       break;
 
     case 'AWAITING_MSME':
-      const cleanMsme = text.toUpperCase().replace(/\s+/g, '');
-      const msmeRegex = /^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/;
-      if (!msmeRegex.test(cleanMsme)) {
-        await whatsappService.sendText(phone, `❌ Invalid MSME Udyam Registration format. Format must be UDYAM-XX-00-0000000 (e.g., UDYAM-TN-01-0123456):`);
-        return;
+      if (mediaType === 'image' || mediaType === 'document') {
+        const mediaUrl = await whatsappService.getMediaUrl(mediaId);
+        context.msme = mediaUrl;
+        await whatsappService.sendText(phone, `✅ MSME Certificate uploaded successfully!\n\nPlease enter your Turf Opening Time (Format: HH:MM AM/PM, e.g. 06:00 AM):`);
+        await updateSession(phone, 'AWAITING_OPENING_TIME', context, prisma);
+      } else {
+        const cleanMsme = text.toUpperCase().replace(/\s+/g, '');
+        const msmeRegex = /^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/;
+        if (!msmeRegex.test(cleanMsme)) {
+          await whatsappService.sendText(phone, `❌ Invalid MSME Udyam Registration. Please enter a valid registration number (e.g., UDYAM-TN-01-0123456) OR upload your MSME Certificate file/image here:`);
+          return;
+        }
+        context.msme = cleanMsme;
+        await whatsappService.sendText(phone, `MSME registered. Please enter your Turf Opening Time (Format: HH:MM AM/PM, e.g. 06:00 AM):`);
+        await updateSession(phone, 'AWAITING_OPENING_TIME', context, prisma);
       }
-      context.msme = cleanMsme;
-      await whatsappService.sendText(phone, `MSME registered. Please enter your Turf Opening Time (Format: HH:MM AM/PM, e.g. 06:00 AM):`);
-      await updateSession(phone, 'AWAITING_OPENING_TIME', context, prisma);
       break;
 
     case 'AWAITING_OPENING_TIME':
@@ -601,16 +623,27 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
  * =========================================================================
  */
 async function handlePlayerFlow(phone, text, owner, prisma) {
-  let session = await prisma.botSession.findUnique({
-    where: { phone }
-  });
+  const lowerText = text.toLowerCase().trim();
+  let session;
 
-  if (!session || session.role !== 'CUSTOMER') {
+  if (lowerText === 'hi' || lowerText === 'hello' || lowerText === 'menu') {
     session = await prisma.botSession.upsert({
       where: { phone },
       update: { role: 'CUSTOMER', state: 'PLAYER_START', context: '{}' },
       create: { phone, role: 'CUSTOMER', state: 'PLAYER_START', context: '{}' }
     });
+  } else {
+    session = await prisma.botSession.findUnique({
+      where: { phone }
+    });
+
+    if (!session || session.role !== 'CUSTOMER') {
+      session = await prisma.botSession.upsert({
+        where: { phone },
+        update: { role: 'CUSTOMER', state: 'PLAYER_START', context: '{}' },
+        create: { phone, role: 'CUSTOMER', state: 'PLAYER_START', context: '{}' }
+      });
+    }
   }
 
   const context = JSON.parse(session.context || '{}');
@@ -618,12 +651,27 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
 
   switch (session.state) {
     case 'PLAYER_START':
+      // 1. Show Turf Name, Image, and Location
+      const photoUrl = owner.photoUrls;
+      const caption = `🏟️ *${owner.turfName}*\n📍 *Location:* ${owner.location}\n\n_Powered by STRIKIT_`;
+      
+      try {
+        if (photoUrl && (photoUrl.startsWith('http://') || photoUrl.startsWith('https://'))) {
+          await whatsappService.sendImage(phone, photoUrl, caption);
+        } else {
+          await whatsappService.sendText(phone, caption);
+        }
+      } catch (err) {
+        console.error('Error sending turf info image:', err.message);
+        await whatsappService.sendText(phone, caption);
+      }
+
+      // 2. Show the options buttons
       await whatsappService.sendButtons(
         phone,
-        `👋 *Welcome to ${owner.turfName}!* ⚽\n\n` +
+        `👋 *Welcome!* ⚽\n\n` +
         `We are delighted to have you here! Book your turf slots or join existing games instantly.\n\n` +
-        `Please select an option below to get started:\n\n` +
-        `_Powered by STRIKIT_`,
+        `Please select an option below to get started:`,
         [
           { id: 'opt_team', title: '1. I Have Team' },
           { id: 'opt_single', title: '2. Single Player' }

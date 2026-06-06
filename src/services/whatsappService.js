@@ -39,6 +39,9 @@ async function sendWhatsAppRequest(payload) {
     } else if (payload.type === 'document') {
       console.log(`Attachment [PDF Document]: ${payload.document.filename} (Link: ${payload.document.link})`);
       if (payload.document.caption) console.log(`Caption: ${payload.document.caption}`);
+    } else if (payload.type === 'image') {
+      console.log(`Attachment [Image]: Link: ${payload.image.link}`);
+      if (payload.image.caption) console.log(`Caption: ${payload.image.caption}`);
     }
     console.log('-------------------------------------------------\n');
     return { data: { messaging_product: 'whatsapp', contacts: [{ input: payload.to, wa_id: payload.to }], messages: [{ id: `wamid.mock_${Date.now()}` }] } };
@@ -165,5 +168,36 @@ export async function sendDeveloperVerificationAlert(owner) {
     } catch (err) {
       console.error(`Failed to send developer alert to ${phone}:`, err.message);
     }
+  }
+}
+
+export async function sendImage(to, imageUrl, caption = '') {
+  const payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to,
+    type: 'image',
+    image: {
+      link: imageUrl,
+      caption
+    }
+  };
+  return sendWhatsAppRequest(payload);
+}
+
+export async function getMediaUrl(mediaId) {
+  if (!ACCESS_TOKEN) {
+    return `https://mock-whatsapp-media.strikit.in/media/${mediaId}`;
+  }
+  try {
+    const response = await axios.get(`${WHATSAPP_API_URL}/${mediaId}`, {
+      headers: {
+        'Authorization': `Bearer ${ACCESS_TOKEN}`
+      }
+    });
+    return response.data.url; // This is the download URL
+  } catch (error) {
+    console.error('Error fetching WhatsApp media URL:', error.response?.data || error.message);
+    return `https://graph.facebook.com/v19.0/${mediaId}`; // Fallback
   }
 }

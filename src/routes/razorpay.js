@@ -22,26 +22,53 @@ router.post('/mock-sub-pay', async (req, res) => {
       return res.status(404).json({ error: 'Owner not found' });
     }
 
-    await prisma.botSession.upsert({
-      where: { phone: owner.mobile },
-      update: { state: 'ONBOARDING_AWAITING_VERIFICATION' },
-      create: { phone: owner.mobile, role: 'ONBOARDING', state: 'ONBOARDING_AWAITING_VERIFICATION' }
-    });
+    if (owner.verified) {
+      const activationExpiry = new Date();
+      activationExpiry.setDate(activationExpiry.getDate() + 30); // Extend by 30 days
 
-    await whatsappService.sendText(
-      owner.mobile,
-      `💳 *STRIKIT Subscription Payment Verified!* 💳\n\n` +
-      `Hello ${owner.name}, your payment of *₹699.00* has been verified successfully!\n\n` +
-      `🔄 *Auto-Pay Setup:* Monthly recurring payments are active for subsequent renewals.\n` +
-      `⏳ *Verification:* Your turf details for *${owner.turfName}* are sent to the developers. You will receive an activation alert as soon as the developer reviews and approves them.\n\n` +
-      `Thank you for choosing STRIKIT to automate your turf! ⚽🚀\n\n` +
-      `_Powered by STRIKIT_`
-    );
+      await prisma.botOwner.update({
+        where: { id: owner.id },
+        data: { subscriptionActive: true, subscriptionExpiry: activationExpiry }
+      });
 
-    await telegramService.sendVerificationAlert(owner);
-    await whatsappService.sendDeveloperVerificationAlert(owner);
+      // Reset owner onboarding session to owner dashboard mode if any
+      await prisma.botSession.upsert({
+        where: { phone: owner.mobile },
+        update: { role: 'OWNER', state: 'OWNER_DASHBOARD' },
+        create: { phone: owner.mobile, role: 'OWNER', state: 'OWNER_DASHBOARD' }
+      });
 
-    res.json({ message: 'Mock subscription payment completed and processed.' });
+      await whatsappService.sendText(
+        owner.mobile,
+        `🎉 *STRIKIT Subscription Renewed!* 🎉\n\n` +
+        `Hello ${owner.name}, your renewal payment of *₹699.00* has been verified successfully!\n\n` +
+        `Your turf *${owner.turfName}* bot has been reactivated for the next 30 days! 🚀\n\n` +
+        `_Powered by STRIKIT_`
+      );
+
+      return res.json({ message: 'Subscription renewed successfully.' });
+    } else {
+      await prisma.botSession.upsert({
+        where: { phone: owner.mobile },
+        update: { state: 'ONBOARDING_AWAITING_VERIFICATION' },
+        create: { phone: owner.mobile, role: 'ONBOARDING', state: 'ONBOARDING_AWAITING_VERIFICATION' }
+      });
+
+      await whatsappService.sendText(
+        owner.mobile,
+        `💳 *STRIKIT Subscription Payment Verified!* 💳\n\n` +
+        `Hello ${owner.name}, your payment of *₹699.00* has been verified successfully!\n\n` +
+        `🔄 *Auto-Pay Setup:* Monthly recurring payments are active for subsequent renewals.\n` +
+        `⏳ *Verification:* Your turf details for *${owner.turfName}* are sent to the developers. You will receive an activation alert as soon as the developer reviews and approves them.\n\n` +
+        `Thank you for choosing STRIKIT to automate your turf! ⚽🚀\n\n` +
+        `_Powered by STRIKIT_`
+      );
+
+      await telegramService.sendVerificationAlert(owner);
+      await whatsappService.sendDeveloperVerificationAlert(owner);
+
+      res.json({ message: 'Mock subscription payment completed and processed.' });
+    }
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
