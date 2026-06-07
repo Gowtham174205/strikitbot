@@ -20,7 +20,7 @@ public class ApiClient {
     private static final String KEY_API_KEY = "api_key";
     
     // Default fallback values
-    public static final String DEFAULT_URL = "http://10.0.2.2:5000/api/admin/"; // Android emulator loopback
+    public static final String DEFAULT_URL = "https://bot.strikit.in/api/admin/"; // Production AWS server
     public static final String DEFAULT_KEY = "STRIKIT_ADMIN_SECRET";
 
     public static synchronized ApiService getApiService(Context context) {
