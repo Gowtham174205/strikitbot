@@ -1,18 +1,74 @@
 import * as whatsappService from '../services/whatsappService.js';
 import * as telegramService from '../services/telegramService.js';
 import express from 'express';
+import crypto from 'crypto';
+import { requireAdminKey } from '../middleware/security.js';
 
 const router = express.Router();
 
+/**
+ * POST /razorpay/webhook
+ * Real Razorpay payment webhook — verify HMAC-SHA256 signature before processing.
+ */
 router.post('/webhook', async (req, res) => {
+  const razorpaySecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+
+  if (razorpaySecret) {
+    const sigHeader = req.headers['x-razorpay-signature'];
+    if (!sigHeader) {
+      console.warn('[SECURITY] Razorpay webhook received without signature header — rejected.');
+      return res.status(403).json({ error: 'Forbidden: Missing Razorpay webhook signature' });
+    }
+
+    const rawBody = req.rawBody; // captured by server.js rawBody middleware
+    const expectedSig = crypto
+      .createHmac('sha256', razorpaySecret)
+      .update(rawBody)
+      .digest('hex');
+
+    let sigMatch = false;
+    try {
+      const a = Buffer.from(expectedSig, 'utf8');
+      const b = Buffer.from(sigHeader, 'utf8');
+      if (a.length === b.length) {
+        sigMatch = crypto.timingSafeEqual(a, b);
+      }
+    } catch {
+      sigMatch = false;
+    }
+
+    if (!sigMatch) {
+      console.warn('[SECURITY] Razorpay webhook signature mismatch — rejected.');
+      return res.status(403).json({ error: 'Forbidden: Invalid Razorpay webhook signature' });
+    }
+  } else {
+    console.warn('[SECURITY WARNING] RAZORPAY_WEBHOOK_SECRET not set — skipping Razorpay signature check.');
+  }
+
   const prisma = req.app.get('prisma');
+  // TODO: process real Razorpay payment events here
   res.sendStatus(200);
 });
+
+// ---------------------------------------------------------------------------
+// MOCK PAYMENT ENDPOINTS (dev/test only)
+// Protected by admin API key. Completely disabled in production NODE_ENV.
+// ---------------------------------------------------------------------------
+function blockInProduction(req, res, next) {
+  if (process.env.NODE_ENV === 'production') {
+    return res
+      .status(404)
+      .json({ error: 'Not found' });
+  }
+  next();
+}
+
+
 
 /**
  * MOCK ENDPOINT: Simulates a successful Owner Onboarding Subscription Payment (₹699)
  */
-router.post('/mock-sub-pay', async (req, res) => {
+router.post('/mock-sub-pay', blockInProduction, requireAdminKey, async (req, res) => {
   const prisma = req.app.get('prisma');
   const { ownerId } = req.body;
 
@@ -71,14 +127,14 @@ router.post('/mock-sub-pay', async (req, res) => {
     }
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
 /**
  * MOCK ENDPOINT: Simulates a successful Player Booking Payment (₹1030)
  */
-router.post('/mock-booking-pay', async (req, res) => {
+router.post('/mock-booking-pay', blockInProduction, requireAdminKey, async (req, res) => {
   const prisma = req.app.get('prisma');
   const { phone, ownerId, date, slotTime, captainName, teamName, amount } = req.body;
 
@@ -146,14 +202,14 @@ router.post('/mock-booking-pay', async (req, res) => {
     res.json({ message: 'Mock booking payment processed successfully', booking });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
 /**
  * MOCK ENDPOINT: Simulates a successful Single Player Join Request Platform Fee Payment (₹9)
  */
-router.post('/mock-join-pay', async (req, res) => {
+router.post('/mock-join-pay', blockInProduction, requireAdminKey, async (req, res) => {
   const prisma = req.app.get('prisma');
   const { requestId, phone } = req.body;
 
@@ -217,8 +273,9 @@ router.post('/mock-join-pay', async (req, res) => {
     res.json({ message: 'Mock join request payment processed successfully', joinRequest: updatedReq });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
 export default router;
+

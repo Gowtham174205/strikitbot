@@ -7,6 +7,12 @@ import { handleWhatsAppWebhook } from './routes/whatsappBot.js';
 import { handleTelegramWebhook, triggerAndSendMonthlyReport } from './routes/telegramBot.js';
 import razorpayRouter from './routes/razorpay.js';
 import adminRouter from './routes/admin.js';
+import {
+  applySecurityHeaders,
+  verifyWhatsAppSignature,
+  verifyTelegramToken,
+  requireAdminKeyForReports
+} from './middleware/security.js';
 
 dotenv.config();
 
@@ -15,7 +21,19 @@ const PORT = process.env.PORT || 5000;
 const prisma = new PrismaClient();
 
 app.set('prisma', prisma);
-app.use(express.json());
+
+// Apply security headers to all responses
+applySecurityHeaders(app);
+
+// Parse JSON bodies. The verify callback captures the raw Buffer so that
+// verifyWhatsAppSignature and verifyRazorpaySignature can compute HMAC-SHA256
+// without needing to re-read the stream.
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+
 
 // Create reports folder if not exists
 const reportsDir = path.resolve('reports');
@@ -23,8 +41,8 @@ if (!fs.existsSync(reportsDir)) {
   fs.mkdirSync(reportsDir, { recursive: true });
 }
 
-// Serve generated PDF reports
-app.use('/reports', express.static(reportsDir));
+// Serve generated PDF reports — protected behind admin API key
+app.use('/reports', requireAdminKeyForReports, express.static(reportsDir));
 
 /**
  * WhatsApp Webhook: Token verification challenge for Meta Developer Setup (GET)
@@ -47,7 +65,7 @@ app.get('/webhook/whatsapp', (req, res) => {
 /**
  * WhatsApp Webhook: Receives message payloads from Meta servers (POST)
  */
-app.post('/webhook/whatsapp', async (req, res) => {
+app.post('/webhook/whatsapp', verifyWhatsAppSignature, async (req, res) => {
   try {
     const entry = req.body.entry?.[0];
     const change = entry?.changes?.[0];
@@ -96,7 +114,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
 /**
  * Telegram Webhook Endpoint
  */
-app.post('/webhook/telegram', async (req, res) => {
+app.post('/webhook/telegram', verifyTelegramToken, async (req, res) => {
   try {
     await handleTelegramWebhook(req, res, prisma);
   } catch (error) {
@@ -112,7 +130,8 @@ app.use('/razorpay', razorpayRouter);
 app.use('/api/admin', adminRouter);
 
 app.get('/status', (req, res) => {
-  res.json({ status: 'active', time: new Date() });
+  // Expose minimal info — no version or env details
+  res.json({ status: 'active' });
 });
 
 function startMonthlyReportScheduler(prisma) {

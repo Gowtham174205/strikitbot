@@ -2,6 +2,7 @@ import * as whatsappService from '../services/whatsappService.js';
 import * as telegramService from '../services/telegramService.js';
 import { generateRevenueReport } from '../services/pdfGenerator.js';
 import path from 'path';
+import { sanitizeInput } from '../middleware/security.js';
 
 const ONBOARDING_NUMBER = process.env.ONBOARDING_NUMBER || '919000000000';
 
@@ -110,13 +111,13 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
       break;
 
     case 'AWAITING_OWNER_NAME':
-      context.ownerName = text;
-      await whatsappService.sendText(phone, `Thank you, ${text}. Now, please enter your Turf Name:`);
+      context.ownerName = sanitizeInput(text, 100);
+      await whatsappService.sendText(phone, `Thank you, ${context.ownerName}. Now, please enter your Turf Name:`);
       await updateSession(phone, 'AWAITING_TURF_NAME', context, prisma);
       break;
 
     case 'AWAITING_TURF_NAME':
-      context.turfName = text;
+      context.turfName = sanitizeInput(text, 100);
       await whatsappService.sendText(phone, `Got it: "${text}". Please enter the Location of your turf as a Google Maps link (e.g., https://maps.app.goo.gl/...):`);
       await updateSession(phone, 'AWAITING_LOCATION', context, prisma);
       break;
@@ -134,11 +135,11 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
     case 'AWAITING_PHOTOS':
       if (mediaType === 'image' || mediaType === 'document') {
         const mediaUrl = await whatsappService.getMediaUrl(mediaId);
-        context.photoUrls = mediaUrl;
+        context.photoUrls = sanitizeInput(mediaUrl, 2000);
         await whatsappService.sendText(phone, `✅ Turf Photo uploaded successfully!\n\nPlease enter your 15-character GST Number (GSTIN):`);
         await updateSession(phone, 'AWAITING_GST', context, prisma);
       } else {
-        context.photoUrls = text;
+        context.photoUrls = sanitizeInput(text, 2000);
         await whatsappService.sendText(phone, `Photos set. Please enter your 15-character GST Number (GSTIN):`);
         await updateSession(phone, 'AWAITING_GST', context, prisma);
       }
@@ -176,13 +177,13 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
       break;
 
     case 'AWAITING_OPENING_TIME':
-      context.openingTime = text;
+      context.openingTime = sanitizeInput(text, 20);
       await whatsappService.sendText(phone, `Please enter your Turf Closing Time (Format: HH:MM AM/PM, e.g. 10:00 PM):`);
       await updateSession(phone, 'AWAITING_CLOSING_TIME', context, prisma);
       break;
 
     case 'AWAITING_CLOSING_TIME':
-      context.closingTime = text;
+      context.closingTime = sanitizeInput(text, 20);
       await whatsappService.sendText(phone, `Please enter your Turf Hourly Booking Price (in ₹, e.g. 1000):`);
       await updateSession(phone, 'AWAITING_PRICE', context, prisma);
       break;

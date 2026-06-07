@@ -1,20 +1,11 @@
 import express from 'express';
+import { requireAdminKey } from '../middleware/security.js';
 
 const router = express.Router();
 
-// Middleware to verify Admin API Key
-function verifyAdminApiKey(req, res, next) {
-  const apiKey = req.headers['x-admin-key'];
-  const expectedKey = process.env.ADMIN_API_KEY || 'STRIKIT_ADMIN_SECRET';
+// Apply timing-safe admin API key verification to all routes in this router
+router.use(requireAdminKey);
 
-  if (!apiKey || apiKey !== expectedKey) {
-    return res.status(401).json({ error: 'Unauthorized: Invalid Admin API Key' });
-  }
-  next();
-}
-
-// Apply API key verification to all routes in this router
-router.use(verifyAdminApiKey);
 
 /**
  * GET /api/admin/owners
@@ -45,7 +36,7 @@ router.get('/owners', async (req, res) => {
     res.json(owners);
   } catch (err) {
     console.error('Error fetching owners:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -85,7 +76,7 @@ router.post('/owners/:id/approve', async (req, res) => {
     res.json({ message: `Owner ${owner.name} approved successfully with a 2-day free trial.` });
   } catch (err) {
     console.error('Error approving owner:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -118,7 +109,7 @@ router.post('/owners/:id/reject', async (req, res) => {
     res.json({ message: `Owner ${owner.name} has been rejected/deactivated.` });
   } catch (err) {
     console.error('Error rejecting owner:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
@@ -174,8 +165,9 @@ router.delete('/owners/:id', async (req, res) => {
     res.json({ message: `Owner ${owner.name} (${owner.turfName}) and all related data have been completely deleted.` });
   } catch (err) {
     console.error('Error deleting owner:', err);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'An internal error occurred' });
   }
 });
 
 export default router;
+
