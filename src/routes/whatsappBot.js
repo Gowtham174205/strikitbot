@@ -229,30 +229,34 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
         });
       }
 
-      const subLink = await paymentService.createSubscriptionLink(owner.id);
       await whatsappService.sendText(
         phone,
         `🎉 *Registration Summary for ${context.turfName}!* 🎉\n\n` +
         `Hello ${context.ownerName}, your registration details have been saved successfully!\n\n` +
-        `*Subscription Plan:*\n` +
-        `• STRIKIT Pro Plan: *₹699.00 / Month*\n\n` +
-        `🔗 *Payment Link:* Click below to pay via Razorpay:\n` +
-        `${subLink}\n\n` +
-        `⚠️ *Note:* By completing this payment, Auto-Pay (Automatic Recurring Monthly Subscription) will be set up and triggered for subsequent monthly renewals.\n\n` +
-        `After payment, the developer will verify your details to activate your bot. Thank you for partnering with STRIKIT!\n\n` +
+        `⏳ *Verification:* Your details have been sent to the developers for review. Once verified, you will be granted a **2-day free trial** to test your bot!\n\n` +
+        `We will notify you immediately via WhatsApp once verified. Thank you for partnering with STRIKIT!\n\n` +
         `_Powered by STRIKIT_`
       );
 
-      await updateSession(phone, 'AWAITING_SUBSCRIPTION', { ...context, ownerId: owner.id }, prisma);
+      await updateSession(phone, 'ONBOARDING_AWAITING_VERIFICATION', { ...context, ownerId: owner.id }, prisma);
+
+      // Trigger verification alerts immediately
+      try {
+        await telegramService.sendVerificationAlert(owner);
+        await whatsappService.sendDeveloperVerificationAlert(owner);
+      } catch (alertErr) {
+        console.error('Error sending developer verification alerts:', alertErr);
+      }
       break;
 
     case 'AWAITING_SUBSCRIPTION':
       const awaitingSubLink = await paymentService.createSubscriptionLink(context.ownerId);
-      await whatsappService.sendText(phone, `Awaiting subscription payment of ₹699. Complete it here: ${awaitingSubLink}`);
+      await whatsappService.sendText(phone, `Your subscription has expired. Please pay ₹699.00 to reactivate: ${awaitingSubLink}`);
       break;
 
     case 'AWAITING_VERIFICATION':
-      await whatsappService.sendText(phone, `Payment received! Developer is currently verifying your documents. Please wait.`);
+    case 'ONBOARDING_AWAITING_VERIFICATION':
+      await whatsappService.sendText(phone, `⏳ *Awaiting Verification:* Your details are being reviewed by the developers. Once approved, your 2-Day Free Trial will start immediately! Please wait.`);
       break;
 
     case 'AWAITING_BUSINESS_CONNECT':
