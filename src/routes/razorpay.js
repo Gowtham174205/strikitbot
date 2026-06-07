@@ -46,7 +46,191 @@ router.post('/webhook', async (req, res) => {
   }
 
   const prisma = req.app.get('prisma');
-  // TODO: process real Razorpay payment events here
+  const body = req.body;
+  console.log('[Razorpay Webhook] Received webhook event:', body.event);
+
+  if (body.event === 'payment_link.paid') {
+    const paymentLink = body.payload?.payment_link?.entity;
+    if (!paymentLink) {
+      console.warn('[Razorpay Webhook] Webhook missing payment_link payload');
+      return res.sendStatus(400);
+    }
+
+    const notes = paymentLink.notes || {};
+    console.log('[Razorpay Webhook] Notes:', notes);
+
+    try {
+      if (notes.type === 'subscription') {
+        const ownerId = parseInt(notes.ownerId, 10);
+        const owner = await prisma.botOwner.findUnique({ where: { id: ownerId } });
+        if (!owner) {
+          console.error(`[Razorpay Webhook] Owner not found for ID: ${ownerId}`);
+          return res.sendStatus(404);
+        }
+
+        if (owner.verified) {
+          const activationExpiry = new Date();
+          activationExpiry.setDate(activationExpiry.getDate() + 30);
+
+          await prisma.botOwner.update({
+            where: { id: owner.id },
+            data: { subscriptionActive: true, subscriptionExpiry: activationExpiry }
+          });
+
+          await prisma.botSession.upsert({
+            where: { phone: owner.mobile },
+            update: { role: 'OWNER', state: 'OWNER_DASHBOARD' },
+            create: { phone: owner.mobile, role: 'OWNER', state: 'OWNER_DASHBOARD' }
+          });
+
+          await whatsappService.sendText(
+            owner.mobile,
+            `🎉 *STRIKIT Subscription Renewed!* 🎉\n\n` +
+            `Hello ${owner.name}, your renewal payment of *₹699.00* has been verified successfully!\n\n` +
+            `Your turf *${owner.turfName}* bot has been reactivated for the next 30 days! 🚀\n\n` +
+            `_Powered by STRIKIT_`
+          );
+        } else {
+          await prisma.botSession.upsert({
+            where: { phone: owner.mobile },
+            update: { state: 'ONBOARDING_AWAITING_VERIFICATION' },
+            create: { phone: owner.mobile, role: 'ONBOARDING', state: 'ONBOARDING_AWAITING_VERIFICATION' }
+          });
+
+          await whatsappService.sendText(
+            owner.mobile,
+            `💳 *STRIKIT Subscription Payment Verified!* 💳\n\n` +
+            `Hello ${owner.name}, your payment of *₹699.00* has been verified successfully!\n\n` +
+            `🔄 *Auto-Pay Setup:* Monthly recurring payments are active for subsequent renewals.\n` +
+            `⏳ *Verification:* Your turf details for *${owner.turfName}* are sent to the developers. You will receive an activation alert as soon as the developer reviews and approves them.\n\n` +
+            `Thank you for choosing STRIKIT to automate your turf! ⚽🚀\n\n` +
+            `_Powered by STRIKIT_`
+          );
+
+          await telegramService.sendVerificationAlert(owner);
+          await whatsappService.sendDeveloperVerificationAlert(owner);
+        }
+      } else if (notes.type === 'booking') {
+        const { phone, ownerId, date, slotTime, captainName, teamName, amount } = notes;
+        const owner = await prisma.botOwner.findUnique({ where: { id: parseInt(ownerId, 10) } });
+        if (!owner) {
+          console.error(`[Razorpay Webhook] Owner not found for ID: ${ownerId}`);
+          return res.sendStatus(404);
+        }
+
+        const slot = await prisma.botTurfSlot.upsert({
+          where: { ownerId_date_timeSlot: { ownerId: owner.id, date, timeSlot: slotTime } },
+          update: { status: 'BOOKED' },
+          create: { ownerId: owner.id, date, timeSlot: slotTime, status: 'BOOKED' }
+        });
+
+        const booking = await prisma.botBooking.create({
+          data: {
+            slotId: slot.id,
+            teamName,
+            captainName,
+            captainPhone: phone,
+            amountPaid: parseFloat(amount) - 30, // Deducting the booking fee
+            paymentId: paymentLink.id
+          }
+        });
+
+        await prisma.botSession.deleteMany({ where: { phone } });
+
+        await whatsappService.sendText(
+          phone,
+          `⚽ *Booking Confirmed at ${owner.turfName}!* ⚽\n\n` +
+          `Hello ${captainName}, thank you for booking with us! Your slot has been successfully reserved.\n\n` +
+          `*Booking Details:*\n` +
+          `• Turf: *${owner.turfName}*\n` +
+          `• Date: ${date}\n` +
+          `• Time Slot: ${slotTime}\n` +
+          `• Team Name: ${teamName}\n` +
+          `• Platform Fee Paid: ₹30.00\n` +
+          `• Turf Amount Paid: ₹${booking.amountPaid.toFixed(2)}\n\n` +
+          `Present this booking confirmation at the turf entrance. Have an amazing game! 🏃‍♂️🔥\n\n` +
+          `_Powered by STRIKIT_`
+        );
+
+        await whatsappService.sendText(
+          owner.mobile,
+          `📅 *New Booking Alert for ${owner.turfName}!* 📅\n\n` +
+          `Hello ${owner.name}, a new booking has been confirmed at your turf:\n\n` +
+          `• Date: ${date}\n` +
+          `• Time Slot: ${slotTime}\n` +
+          `• Team Name: ${teamName}\n` +
+          `• Captain Name: ${captainName} (${phone})\n\n` +
+          `The slot status has been updated to *BOOKED* in your inventory.\n\n` +
+          `_Powered by STRIKIT_`
+        );
+
+        await telegramService.sendAlert(
+          `New Booking Confirmed! ✅\n` +
+          `Turf: ${owner.turfName}\n` +
+          `Date: ${date}\n` +
+          `Slot: ${slotTime}\n` +
+          `Team: ${teamName}\n` +
+          `Revenue: ₹${amount}`
+        );
+      } else if (notes.type === 'join_request') {
+        const { requestId, phone } = notes;
+        const joinReq = await prisma.botJoinRequest.findUnique({
+          where: { id: parseInt(requestId, 10) }
+        });
+
+        if (!joinReq) {
+          console.error(`[Razorpay Webhook] Join Request not found for ID: ${requestId}`);
+          return res.sendStatus(404);
+        }
+
+        const updatedReq = await prisma.botJoinRequest.update({
+          where: { id: joinReq.id },
+          data: { status: 'PENDING' }
+        });
+
+        await prisma.botSession.deleteMany({ where: { phone: joinReq.playerPhone } });
+
+        const booking = await prisma.botBooking.findUnique({
+          where: { id: joinReq.bookingId },
+          include: { slot: { include: { owner: true } } }
+        });
+
+        if (booking) {
+          await whatsappService.sendButtons(
+            booking.captainPhone,
+            `🔔 *Join Request for your booking at ${booking.slot.owner.turfName}!* 🔔\n\n` +
+            `Hello ${booking.captainName}, an individual player wants to join your time slot:\n\n` +
+            `• Player Name: *${joinReq.playerName}*\n` +
+            `• Booking Slot: ${booking.slot.date} @ ${booking.slot.timeSlot}\n\n` +
+            `Please select an action:`,
+            [
+              { id: `captain_accept_${joinReq.id}`, title: '✅ Accept' },
+              { id: `captain_reject_${joinReq.id}`, title: '❌ Reject' }
+            ]
+          );
+        }
+
+        await whatsappService.sendText(
+          joinReq.playerPhone,
+          `⏳ *STRIKIT Platform Fee Verified!* ⏳\n\n` +
+          `Hello ${joinReq.playerName}, your platform fee of *₹9.00* has been successfully processed.\n\n` +
+          `📬 *Status:* We have sent a request to the Team Captain of the *${booking ? booking.slot.timeSlot : 'selected'}* slot at *${booking ? booking.slot.owner.turfName : 'the turf'}*.\n` +
+          `📲 We will notify you immediately via WhatsApp the moment the captain accepts or rejects your request. Stay tuned!\n\n` +
+          `_Powered by STRIKIT_`
+        );
+
+        const turfName = booking ? booking.slot.owner.turfName : 'Unknown Turf';
+        const captainName = booking ? booking.captainName : 'Captain';
+        await telegramService.sendAlert(
+          `Single Player Join Request (₹9 Platform Fee Paid): ${joinReq.playerName} requested to join ${captainName}'s team at ${turfName}.`
+        );
+      }
+    } catch (dbErr) {
+      console.error('[Razorpay Webhook] Database error processing webhook:', dbErr);
+      return res.sendStatus(500);
+    }
+  }
+
   res.sendStatus(200);
 });
 

@@ -3,6 +3,7 @@ import * as telegramService from '../services/telegramService.js';
 import { generateRevenueReport } from '../services/pdfGenerator.js';
 import path from 'path';
 import { sanitizeInput } from '../middleware/security.js';
+import * as paymentService from '../services/paymentService.js';
 
 const ONBOARDING_NUMBER = process.env.ONBOARDING_NUMBER || '919000000000';
 
@@ -55,13 +56,14 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
 
   if (!turfOwner.subscriptionActive) {
     if (phone === turfOwner.mobile) {
+      const subLink = await paymentService.createSubscriptionLink(turfOwner.id);
       return whatsappService.sendText(
         phone,
         `⚠️ *STRIKIT Subscription Expired* ⚠️\n\n` +
         `Dear ${turfOwner.name}, your subscription or 2-day free trial for *${turfOwner.turfName}* has expired.\n\n` +
         `To keep your booking bot active for players, please pay ₹699.00 to renew your monthly subscription:\n\n` +
         `🔗 *Payment Link:* Click below to pay via Razorpay:\n` +
-        `http://razorpay.mock/sub/${turfOwner.id}\n\n` +
+        `${subLink}\n\n` +
         `_Powered by STRIKIT_`
       );
     } else {
@@ -227,6 +229,7 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
         });
       }
 
+      const subLink = await paymentService.createSubscriptionLink(owner.id);
       await whatsappService.sendText(
         phone,
         `🎉 *Registration Summary for ${context.turfName}!* 🎉\n\n` +
@@ -234,7 +237,7 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
         `*Subscription Plan:*\n` +
         `• STRIKIT Pro Plan: *₹699.00 / Month*\n\n` +
         `🔗 *Payment Link:* Click below to pay via Razorpay:\n` +
-        `http://razorpay.mock/sub/${owner.id}\n\n` +
+        `${subLink}\n\n` +
         `⚠️ *Note:* By completing this payment, Auto-Pay (Automatic Recurring Monthly Subscription) will be set up and triggered for subsequent monthly renewals.\n\n` +
         `After payment, the developer will verify your details to activate your bot. Thank you for partnering with STRIKIT!\n\n` +
         `_Powered by STRIKIT_`
@@ -244,7 +247,8 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
       break;
 
     case 'AWAITING_SUBSCRIPTION':
-      await whatsappService.sendText(phone, `Awaiting subscription payment of ₹699. Complete it here: http://razorpay.mock/sub/${context.ownerId}`);
+      const awaitingSubLink = await paymentService.createSubscriptionLink(context.ownerId);
+      await whatsappService.sendText(phone, `Awaiting subscription payment of ₹699. Complete it here: ${awaitingSubLink}`);
       break;
 
     case 'AWAITING_VERIFICATION':
@@ -1157,6 +1161,15 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
 
       const bookingAmount = owner.pricePerHour || 1000;
       const totalAmount = bookingAmount + 30;
+      const payLink = await paymentService.createBookingLink({
+        phone,
+        ownerId: owner.id,
+        date: context.selectedDate,
+        slotTime: context.selectedSlot,
+        captainName: context.captainName,
+        teamName: context.teamName,
+        amount: totalAmount
+      });
 
       await whatsappService.sendText(
         phone,
@@ -1172,7 +1185,7 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
         `• STRIKIT Booking Fee: ₹30.00\n` +
         `• *Total Amount:* *₹${totalAmount}.00*\n\n` +
         `🔗 *Payment Link:* Please click the link below to securely pay and confirm your booking:\n` +
-        `http://razorpay.mock/pay?slot=${context.selectedSlot}&date=${context.selectedDate}&owner=${owner.id}&phone=${phone}&amount=${totalAmount}\n\n` +
+        `${payLink}\n\n` +
         `_Powered by STRIKIT_`
       );
 
@@ -1182,11 +1195,20 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
     case 'AWAITING_PAYMENT_CONFIRMATION':
       const bookingAmt = owner.pricePerHour || 1000;
       const totalAmt = bookingAmt + 30;
+      const awaitingPayLink = await paymentService.createBookingLink({
+        phone,
+        ownerId: owner.id,
+        date: context.selectedDate,
+        slotTime: context.selectedSlot,
+        captainName: context.captainName,
+        teamName: context.teamName,
+        amount: totalAmt
+      });
       await whatsappService.sendText(
         phone,
         `⏳ *Awaiting Payment Confirmation* ⏳\n\n` +
         `Your slot is temporarily held. Please click here to complete your payment:\n` +
-        `👉 http://razorpay.mock/pay?slot=${context.selectedSlot}&date=${context.selectedDate}&owner=${owner.id}&phone=${phone}&amount=${totalAmt}\n\n` +
+        `👉 ${awaitingPayLink}\n\n` +
         `_Powered by STRIKIT_`
       );
       break;
@@ -1229,13 +1251,14 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
       });
 
       // Ask player to pay ₹9 platform fee (non-refundable)
+      const joinPayLink = await paymentService.createJoinRequestLink(joinReq.id, phone);
       await whatsappService.sendText(
         phone,
         `💳 *STRIKIT Platform Fee Payment* 💳\n\n` +
         `Hello ${context.playerName}, to submit your request to join the game at *${owner.turfName}*, please pay the platform fee:\n\n` +
         `• *Amount:* *₹9.00* (Non-Refundable)\n\n` +
         `🔗 *Payment Link:* Click below to pay via Razorpay:\n` +
-        `http://razorpay.mock/joinpay?id=${joinReq.id}&phone=${phone}\n\n` +
+        `${joinPayLink}\n\n` +
         `_Powered by STRIKIT_`
       );
 
@@ -1244,11 +1267,12 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
       break;
 
     case 'AWAITING_SINGLE_PLAYER_PAYMENT':
+      const awaitingJoinPayLink = await paymentService.createJoinRequestLink(context.joinRequestId, phone);
       await whatsappService.sendText(
         phone,
         `⏳ *Awaiting Platform Fee Payment* ⏳\n\n` +
         `Please complete the ₹9.00 non-refundable platform fee payment to notify the captain:\n` +
-        `👉 http://razorpay.mock/joinpay?id=${context.joinRequestId}&phone=${phone}\n\n` +
+        `👉 ${awaitingJoinPayLink}\n\n` +
         `_Powered by STRIKIT_`
       );
       break;

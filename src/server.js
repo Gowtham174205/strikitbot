@@ -8,6 +8,7 @@ import * as whatsappService from './services/whatsappService.js';
 import { handleTelegramWebhook, triggerAndSendMonthlyReport } from './routes/telegramBot.js';
 import razorpayRouter from './routes/razorpay.js';
 import adminRouter from './routes/admin.js';
+import * as paymentService from './services/paymentService.js';
 import {
   applySecurityHeaders,
   verifyWhatsAppSignature,
@@ -195,13 +196,14 @@ function startSubscriptionExpiryScheduler(prisma) {
 
         // Send active push alert to owner's mobile
         try {
+          const subLink = await paymentService.createSubscriptionLink(owner.id);
           await whatsappService.sendText(
             owner.mobile,
             `⚠️ *STRIKIT Subscription Expired* ⚠️\n\n` +
             `Dear ${owner.name}, your 2-day free trial or monthly subscription for *${owner.turfName}* has expired.\n\n` +
             `To keep your booking bot active for players, please pay ₹699.00 to renew your monthly subscription:\n\n` +
             `🔗 *Payment Link:* Click below to renew via Razorpay:\n` +
-            `http://razorpay.mock/sub/${owner.id}\n\n` +
+            `${subLink}\n\n` +
             `_Powered by STRIKIT_`
           );
           console.log(`[Subscription Scheduler] Successfully sent expiry alert to owner phone: ${owner.mobile}`);
