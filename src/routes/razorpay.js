@@ -1,5 +1,6 @@
 import * as whatsappService from '../services/whatsappService.js';
 import * as telegramService from '../services/telegramService.js';
+import * as payoutService from '../services/payoutService.js';
 import express from 'express';
 import crypto from 'crypto';
 import { requireAdminKey } from '../middleware/security.js';
@@ -130,12 +131,44 @@ router.post('/webhook', async (req, res) => {
             teamName,
             captainName,
             captainPhone: phone,
-            amountPaid: parseFloat(amount) - 30, // Deducting the booking fee
+            amountPaid: parseFloat(amount) - 50, // Deducting the updated ₹50 booking fee
             paymentId: paymentLink.id
           }
         });
 
         await prisma.botSession.deleteMany({ where: { phone } });
+
+        // Execute automatic split payout to owner via RazorpayX
+        let payoutStatusText = '';
+        if (owner.upiId) {
+          try {
+            owner.prisma = prisma; // Attach prisma so payoutService can cache Contact/Fund IDs
+            const payoutResult = await payoutService.executePayout({
+              owner,
+              amount: booking.amountPaid, // Turf rate (e.g., ₹1200)
+              bookingId: booking.id
+            });
+            payoutStatusText = `\n• Payout Status: *${payoutResult.status.toUpperCase()}* (${payoutResult.simulated ? 'SIMULATED' : 'LIVE'})`;
+          } catch (payoutErr) {
+            console.error(`[Razorpay Webhook] Failed to execute split payout for booking ${booking.id}:`, payoutErr);
+            payoutStatusText = `\n• Payout Status: *FAILED* (Manual transfer required)`;
+            
+            try {
+              await telegramService.sendAlert(
+                `⚠️ *Payout Failed Alert!* ⚠️\n` +
+                `Turf: ${owner.turfName}\n` +
+                `Owner: ${owner.name}\n` +
+                `Amount: ₹${booking.amountPaid.toFixed(2)}\n` +
+                `Error: ${payoutErr.message}`
+              );
+            } catch (teleErr) {
+              console.error('Error sending Telegram payout failure alert:', teleErr);
+            }
+          }
+        } else {
+          console.warn(`[Razorpay Webhook] Skipping payout for owner ${owner.id} - no UPI ID configured.`);
+          payoutStatusText = `\n• Payout Status: *SKIPPED* (No UPI ID set by Owner)`;
+        }
 
         await whatsappService.sendText(
           phone,
@@ -146,7 +179,7 @@ router.post('/webhook', async (req, res) => {
           `• Date: ${date}\n` +
           `• Time Slot: ${slotTime}\n` +
           `• Team Name: ${teamName}\n` +
-          `• Platform Fee Paid: ₹30.00\n` +
+          `• Platform Fee Paid: ₹50.00\n` +
           `• Turf Amount Paid: ₹${booking.amountPaid.toFixed(2)}\n\n` +
           `Present this booking confirmation at the turf entrance. Have an amazing game! 🏃‍♂️🔥\n\n` +
           `_Powered by STRIKIT_`
@@ -159,7 +192,9 @@ router.post('/webhook', async (req, res) => {
           `• Date: ${date}\n` +
           `• Time Slot: ${slotTime}\n` +
           `• Team Name: ${teamName}\n` +
-          `• Captain Name: ${captainName} (${phone})\n\n` +
+          `• Captain Name: ${captainName} (${phone})\n` +
+          `• Total Paid by Player: ₹${parseFloat(amount).toFixed(2)}\n` +
+          `• Payout Sent to you: ₹${booking.amountPaid.toFixed(2)}${payoutStatusText}\n\n` +
           `The slot status has been updated to *BOOKED* in your inventory.\n\n` +
           `_Powered by STRIKIT_`
         );
@@ -170,7 +205,8 @@ router.post('/webhook', async (req, res) => {
           `Date: ${date}\n` +
           `Slot: ${slotTime}\n` +
           `Team: ${teamName}\n` +
-          `Revenue: ₹${amount}`
+          `Revenue: ₹${amount}\n` +
+          `Turf Share: ₹${booking.amountPaid}${payoutStatusText}`
         );
       } else if (notes.type === 'join_request') {
         const { requestId, phone } = notes;
@@ -340,12 +376,32 @@ router.post('/mock-booking-pay', blockInProduction, requireAdminKey, async (req,
         teamName,
         captainName,
         captainPhone: phone,
-        amountPaid: parseFloat(amount) - 30, // Deducting the booking fee
+        amountPaid: parseFloat(amount) - 50, // Deducting the updated ₹50 booking fee
         paymentId: `pay_mock_${Date.now()}`
       }
     });
 
     await prisma.botSession.deleteMany({ where: { phone } });
+
+    // Execute automatic split payout to owner via RazorpayX (will simulate success if not fully configured)
+    let payoutStatusText = '';
+    if (owner.upiId) {
+      try {
+        owner.prisma = prisma; // Attach prisma so payoutService can cache Contact/Fund IDs
+        const payoutResult = await payoutService.executePayout({
+          owner,
+          amount: booking.amountPaid, // Turf rate (e.g., ₹1200)
+          bookingId: booking.id
+        });
+        payoutStatusText = `\n• Payout Status: *${payoutResult.status.toUpperCase()}* (${payoutResult.simulated ? 'SIMULATED' : 'LIVE'})`;
+      } catch (payoutErr) {
+        console.error(`[Razorpay Webhook Mock] Failed to execute split payout for booking ${booking.id}:`, payoutErr);
+        payoutStatusText = `\n• Payout Status: *FAILED* (Manual transfer required)`;
+      }
+    } else {
+      console.warn(`[Razorpay Webhook Mock] Skipping payout for owner ${owner.id} - no UPI ID configured.`);
+      payoutStatusText = `\n• Payout Status: *SKIPPED* (No UPI ID set by Owner)`;
+    }
 
     await whatsappService.sendText(
       phone,
@@ -356,7 +412,7 @@ router.post('/mock-booking-pay', blockInProduction, requireAdminKey, async (req,
       `• Date: ${date}\n` +
       `• Time Slot: ${slotTime}\n` +
       `• Team Name: ${teamName}\n` +
-      `• Platform Fee Paid: ₹30.00\n` +
+      `• Platform Fee Paid: ₹50.00\n` +
       `• Turf Amount Paid: ₹${booking.amountPaid.toFixed(2)}\n\n` +
       `Present this booking confirmation at the turf entrance. Have an amazing game! 🏃‍♂️🔥\n\n` +
       `_Powered by STRIKIT_`
@@ -369,7 +425,9 @@ router.post('/mock-booking-pay', blockInProduction, requireAdminKey, async (req,
       `• Date: ${date}\n` +
       `• Time Slot: ${slotTime}\n` +
       `• Team Name: ${teamName}\n` +
-      `• Captain Name: ${captainName} (${phone})\n\n` +
+      `• Captain Name: ${captainName} (${phone})\n` +
+      `• Total Paid by Player: ₹${parseFloat(amount).toFixed(2)}\n` +
+      `• Payout Sent to you: ₹${booking.amountPaid.toFixed(2)}${payoutStatusText}\n\n` +
       `The slot status has been updated to *BOOKED* in your inventory.\n\n` +
       `_Powered by STRIKIT_`
     );
@@ -380,10 +438,11 @@ router.post('/mock-booking-pay', blockInProduction, requireAdminKey, async (req,
       `Date: ${date}\n` +
       `Slot: ${slotTime}\n` +
       `Team: ${teamName}\n` +
-      `Revenue: ₹${amount}`
+      `Revenue: ₹${amount}\n` +
+      `Turf Share: ₹${booking.amountPaid}${payoutStatusText}`
     );
 
-    res.json({ message: 'Mock booking payment processed successfully', booking });
+    res.json({ message: 'Mock booking payment processed successfully', booking, payoutStatusText });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'An internal error occurred' });

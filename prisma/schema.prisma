@@ -1189,23 +1189,26 @@ model wallet_transactions {
 }
 
 model BotOwner {
-  id                 Int           @id @default(autoincrement())
-  name               String
-  mobile             String        @unique
-  turfName           String
-  location           String
-  photoUrls          String
-  gst                String?
-  msme               String?
-  verified           Boolean       @default(false)
-  businessPhone      String?       @unique
-  subscriptionActive Boolean       @default(false)
-  subscriptionExpiry DateTime?
-  createdAt          DateTime      @default(now())
-  openingTime        String        @default("06:00 AM")
-  closingTime        String        @default("10:00 PM")
-  pricePerHour       Float         @default(1000.0)
-  slots              BotTurfSlot[]
+  id                    Int           @id @default(autoincrement())
+  name                  String
+  mobile                String        @unique
+  turfName              String
+  location              String
+  photoUrls             String
+  gst                   String?
+  msme                  String?
+  upiId                 String?
+  razorpayContactId     String?
+  razorpayFundAccountId String?
+  verified              Boolean       @default(false)
+  businessPhone         String?       @unique
+  subscriptionActive    Boolean       @default(false)
+  subscriptionExpiry    DateTime?
+  createdAt             DateTime      @default(now())
+  openingTime           String        @default("06:00 AM")
+  closingTime           String        @default("10:00 PM")
+  pricePerHour          Float         @default(1000.0)
+  slots                 BotTurfSlot[]
 }
 
 model BotTurfSlot {

@@ -194,6 +194,23 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
       const priceVal = parseFloat(text);
       context.pricePerHour = isNaN(priceVal) || priceVal <= 0 ? 1000.0 : priceVal;
       
+      await whatsappService.sendText(
+        phone,
+        `Great! Hourly rate is set to *₹${context.pricePerHour.toFixed(2)}*.\n\n` +
+        `👉 *Final Registration Detail:* Please enter your UPI ID (VPA) where players' booking payments will be transferred automatically (e.g. owner@upi or name@ybl):`
+      );
+      await updateSession(phone, 'AWAITING_UPI', context, prisma);
+      break;
+
+    case 'AWAITING_UPI':
+      const cleanUpiId = text.trim().toLowerCase().replace(/\s+/g, '');
+      const upiRegexStr = /^[\w\.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      if (!upiRegexStr.test(cleanUpiId)) {
+        await whatsappService.sendText(phone, "❌ Invalid UPI ID format. Please reply with a valid UPI ID (e.g. owner@upi or name@ybl):");
+        return;
+      }
+      context.upiId = cleanUpiId;
+      
       // Save owner data to database (verified: false)
       const existingOwner = await prisma.botOwner.findUnique({ where: { mobile: phone } });
       let owner;
@@ -207,6 +224,7 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
             photoUrls: context.photoUrls,
             gst: context.gst,
             msme: context.msme,
+            upiId: context.upiId,
             openingTime: context.openingTime,
             closingTime: context.closingTime,
             pricePerHour: context.pricePerHour
@@ -222,6 +240,7 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
             photoUrls: context.photoUrls,
             gst: context.gst,
             msme: context.msme,
+            upiId: context.upiId,
             openingTime: context.openingTime,
             closingTime: context.closingTime,
             pricePerHour: context.pricePerHour
@@ -516,6 +535,9 @@ async function handleOwnerCommands(phone, text, owner, prisma, mediaId = '', med
       } else if (text === 'edit_msme') {
         await whatsappService.sendText(phone, "Please reply with the new MSME Certificate Number or upload a file directly:");
         await prisma.botSession.update({ where: { phone }, data: { state: 'AWAITING_EDIT_MSME' } });
+      } else if (text === 'edit_upi') {
+        await whatsappService.sendText(phone, "Please reply with your new UPI ID (VPA) for receiving payments (e.g. owner@upi):");
+        await prisma.botSession.update({ where: { phone }, data: { state: 'AWAITING_EDIT_UPI' } });
       } else if (text === 'edit_opening') {
         await whatsappService.sendText(phone, "Please reply with the new Opening Time (e.g. 06:00 AM):");
         await prisma.botSession.update({ where: { phone }, data: { state: 'AWAITING_EDIT_OPENING' } });
@@ -597,6 +619,25 @@ async function handleOwnerCommands(phone, text, owner, prisma, mediaId = '', med
       }
       await prisma.botOwner.update({ where: { id: owner.id }, data: { msme: msmeVal } });
       await whatsappService.sendText(phone, `✅ MSME certificate successfully updated to: *${msmeVal}*\n\n_Powered by STRIKIT_`);
+      await prisma.botSession.update({ where: { phone }, data: { state: 'OWNER_DASHBOARD' } });
+      break;
+
+    case 'AWAITING_EDIT_UPI':
+      const cleanUpiStr = text.trim().toLowerCase().replace(/\s+/g, '');
+      const upiRegexObj = /^[\w\.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+      if (!upiRegexObj.test(cleanUpiStr)) {
+        await whatsappService.sendText(phone, "❌ Invalid UPI ID format. Please reply with a valid UPI ID (e.g. owner@upi or name@ybl):");
+        return;
+      }
+      await prisma.botOwner.update({
+        where: { id: owner.id },
+        data: {
+          upiId: cleanUpiStr,
+          razorpayContactId: null,
+          razorpayFundAccountId: null
+        }
+      });
+      await whatsappService.sendText(phone, `✅ UPI ID successfully updated to: *${cleanUpiStr}*\n\n_Powered by STRIKIT_`);
       await prisma.botSession.update({ where: { phone }, data: { state: 'OWNER_DASHBOARD' } });
       break;
 
@@ -1164,7 +1205,7 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
       context.teamName = details[1].trim();
 
       const bookingAmount = owner.pricePerHour || 1000;
-      const totalAmount = bookingAmount + 30;
+      const totalAmount = bookingAmount + 50;
       const payLink = await paymentService.createBookingLink({
         phone,
         ownerId: owner.id,
@@ -1186,7 +1227,7 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
         `• Team Name: ${context.teamName}\n\n` +
         `*Payment Breakdown:*\n` +
         `• Turf Rate: ₹${bookingAmount}.00\n` +
-        `• STRIKIT Booking Fee: ₹30.00\n` +
+        `• STRIKIT Booking Fee: ₹50.00\n` +
         `• *Total Amount:* *₹${totalAmount}.00*\n\n` +
         `🔗 *Payment Link:* Please click the link below to securely pay and confirm your booking:\n` +
         `${payLink}\n\n` +
@@ -1198,7 +1239,7 @@ async function handlePlayerFlow(phone, text, owner, prisma) {
 
     case 'AWAITING_PAYMENT_CONFIRMATION':
       const bookingAmt = owner.pricePerHour || 1000;
-      const totalAmt = bookingAmt + 30;
+      const totalAmt = bookingAmt + 50;
       const awaitingPayLink = await paymentService.createBookingLink({
         phone,
         ownerId: owner.id,
@@ -1360,7 +1401,8 @@ async function sendSettingsEditMenu(phone, prisma) {
       title: "Verification Details",
       rows: [
         { id: "edit_gst", title: "GST Number", description: "Update GST registration number" },
-        { id: "edit_msme", title: "MSME Certificate", description: "Update MSME registration number/file" }
+        { id: "edit_msme", title: "MSME Certificate", description: "Update MSME registration number/file" },
+        { id: "edit_upi", title: "UPI ID", description: "Update UPI ID for receiving payments" }
       ]
     },
     {

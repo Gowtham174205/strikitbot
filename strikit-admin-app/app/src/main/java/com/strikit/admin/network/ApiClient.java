@@ -21,7 +21,7 @@ public class ApiClient {
     
     // Default fallback values
     public static final String DEFAULT_URL = "https://bot.strikit.in/api/admin/"; // Production AWS server
-    public static final String DEFAULT_KEY = "STRIKIT_ADMIN_SECRET";
+    public static final String DEFAULT_KEY = "11324b5138f1be5b6486edc2f6431beeba4d17f10da5be6fe24ca3e97c114680";
 
     public static synchronized ApiService getApiService(Context context) {
         if (apiService == null) {
