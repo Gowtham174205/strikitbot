@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { handleWhatsAppWebhook } from './routes/whatsappBot.js';
+import * as whatsappService from './services/whatsappService.js';
 import { handleTelegramWebhook, triggerAndSendMonthlyReport } from './routes/telegramBot.js';
 import razorpayRouter from './routes/razorpay.js';
 import adminRouter from './routes/admin.js';
@@ -169,8 +170,60 @@ function startMonthlyReportScheduler(prisma) {
   setInterval(checkReport, 60 * 60 * 1000);
 }
 
-// Start the scheduler
+function startSubscriptionExpiryScheduler(prisma) {
+  const checkExpiry = async () => {
+    try {
+      const now = new Date();
+      // Find all owners who are currently active but whose trial/subscription has expired
+      const expiredOwners = await prisma.botOwner.findMany({
+        where: {
+          subscriptionActive: true,
+          subscriptionExpiry: {
+            lt: now
+          }
+        }
+      });
+
+      for (const owner of expiredOwners) {
+        console.log(`[Subscription Scheduler] Deactivating expired subscription for Owner ID ${owner.id} (${owner.name})...`);
+
+        // Deactivate in database
+        await prisma.botOwner.update({
+          where: { id: owner.id },
+          data: { subscriptionActive: false }
+        });
+
+        // Send active push alert to owner's mobile
+        try {
+          await whatsappService.sendText(
+            owner.mobile,
+            `⚠️ *STRIKIT Subscription Expired* ⚠️\n\n` +
+            `Dear ${owner.name}, your 2-day free trial or monthly subscription for *${owner.turfName}* has expired.\n\n` +
+            `To keep your booking bot active for players, please pay ₹699.00 to renew your monthly subscription:\n\n` +
+            `🔗 *Payment Link:* Click below to renew via Razorpay:\n` +
+            `http://razorpay.mock/sub/${owner.id}\n\n` +
+            `_Powered by STRIKIT_`
+          );
+          console.log(`[Subscription Scheduler] Successfully sent expiry alert to owner phone: ${owner.mobile}`);
+        } catch (wsErr) {
+          console.error(`[Subscription Scheduler] Failed to send WhatsApp alert to ${owner.mobile}:`, wsErr.message);
+        }
+      }
+    } catch (err) {
+      console.error('[Subscription Scheduler] Error checking expired subscriptions:', err);
+    }
+  };
+
+  // Run check on startup (wait 10s after server binding)
+  setTimeout(checkExpiry, 10000);
+
+  // Check every 1 hour
+  setInterval(checkExpiry, 60 * 60 * 1000);
+}
+
+// Start the schedulers
 startMonthlyReportScheduler(prisma);
+startSubscriptionExpiryScheduler(prisma);
 
 app.listen(PORT, () => {
   console.log(`STRIKIT Bot Server listening on port ${PORT}`);
