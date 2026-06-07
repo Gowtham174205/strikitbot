@@ -1,4 +1,5 @@
 import express from 'express';
+import axios from 'axios';
 import { requireAdminKey } from '../middleware/security.js';
 
 const router = express.Router();
@@ -166,6 +167,49 @@ router.delete('/owners/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting owner:', err);
     res.status(500).json({ error: 'An internal error occurred' });
+  }
+});
+
+/**
+ * POST /api/admin/telegram/setup-webhook
+ * Triggers automatic Telegram webhook registration using server environment variables.
+ * Enforces timing-safe requireAdminKey auth (applied at router level).
+ */
+router.post('/telegram/setup-webhook', async (req, res) => {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const secretToken = process.env.TELEGRAM_WEBHOOK_SECRET;
+
+  if (!token) {
+    return res.status(400).json({ error: 'TELEGRAM_BOT_TOKEN is not set in the server environment.' });
+  }
+  if (!secretToken) {
+    return res.status(400).json({ error: 'TELEGRAM_WEBHOOK_SECRET is not set in the server environment.' });
+  }
+
+  try {
+    // Dynamically detect server protocol and host
+    const host = req.get('host');
+    const protocol = req.protocol === 'http' && host.includes('localhost') ? 'http' : 'https';
+    const webhookUrl = `${protocol}://${host}/webhook/telegram`;
+
+    console.log(`[Telegram Setup] Registering webhook: ${webhookUrl}`);
+    const response = await axios.post(`https://api.telegram.org/bot${token}/setWebhook`, {
+      url: webhookUrl,
+      secret_token: secretToken
+    });
+
+    res.json({
+      message: 'Telegram webhook registration request sent successfully.',
+      telegramResponse: response.data,
+      registeredUrl: webhookUrl
+    });
+  } catch (err) {
+    const errorData = err.response?.data || err.message;
+    console.error('Error setting Telegram webhook:', errorData);
+    res.status(500).json({
+      error: 'Failed to configure Telegram webhook with Telegram servers.',
+      details: typeof errorData === 'object' ? errorData : { message: errorData }
+    });
   }
 });
 
