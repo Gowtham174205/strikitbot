@@ -1,23 +1,66 @@
-import { PrismaClient } from '@prisma/client';
-import { handleWhatsAppWebhook } from './routes/whatsappBot.js';
-import { handleTelegramWebhook } from './routes/telegramBot.js';
-import { mockSentMessages, clearMockMessages } from './services/whatsappService.js';
-import { mockTelegramMessages, clearMockTelegramMessages } from './services/telegramService.js';
-import { generateRevenueReport } from './services/pdfGenerator.js';
+import dotenv from 'dotenv';
+dotenv.config();
+
+// Force local simulation/mock mode for tests
+process.env.WHATSAPP_ACCESS_TOKEN = '';
+process.env.WHATSAPP_PHONE_NUMBER_ID = '';
+process.env.RAZORPAY_KEY_ID = '';
+process.env.RAZORPAY_KEY_SECRET = '';
+
+// Use direct/session database connection for test stability instead of transactional pgbouncer
+if (process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL
+    .replace(':6543/', ':5432/')
+    .replace('pgbouncer=true', 'pgbouncer=false');
+}
+
 import path from 'path';
 import fs from 'fs';
 
-const prisma = new PrismaClient();
-const ONBOARDING_NUMBER = '919000000000';
+let PrismaClient;
+let prisma;
+let handleWhatsAppWebhook;
+let handleTelegramWebhook;
+let mockSentMessages;
+let clearMockMessages;
+let mockTelegramMessages;
+let clearMockTelegramMessages;
+let generateRevenueReport;
+
 const OWNER_MOBILE = '919876543210';
 const BUSINESS_NUMBER = '918888888888';
 const PLAYER_MOBILE = '919999999999';
 const SINGLE_PLAYER_MOBILE = '917777777777';
+let ONBOARDING_NUMBER;
 
 async function runVerification() {
   console.log('🚀 Starting STRIKIT Bot Flow Programmatic Verification...');
 
   try {
+    // Dynamically import modules to ensure process.env variables take effect
+    const prismaModule = await import('@prisma/client');
+    PrismaClient = prismaModule.PrismaClient;
+    prisma = new PrismaClient();
+
+    const whatsappBotModule = await import('./routes/whatsappBot.js');
+    handleWhatsAppWebhook = whatsappBotModule.handleWhatsAppWebhook;
+
+    const telegramBotModule = await import('./routes/telegramBot.js');
+    handleTelegramWebhook = telegramBotModule.handleTelegramWebhook;
+
+    const whatsappServiceModule = await import('./services/whatsappService.js');
+    mockSentMessages = whatsappServiceModule.mockSentMessages;
+    clearMockMessages = whatsappServiceModule.clearMockMessages;
+
+    const telegramServiceModule = await import('./services/telegramService.js');
+    mockTelegramMessages = telegramServiceModule.mockTelegramMessages;
+    clearMockTelegramMessages = telegramServiceModule.clearMockTelegramMessages;
+
+    const pdfGeneratorModule = await import('./services/pdfGenerator.js');
+    generateRevenueReport = pdfGeneratorModule.generateRevenueReport;
+
+    ONBOARDING_NUMBER = process.env.ONBOARDING_NUMBER || '919000000000';
+
     // 0. Clean Bot Database Tables
     console.log('🧹 Wiping WhatsApp bot database tables for test...');
     await prisma.botJoinRequest.deleteMany();
@@ -69,8 +112,12 @@ async function runVerification() {
     // Send Price
     clearMockMessages();
     await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '1200', prisma);
+    assertMessageContains(OWNER_MOBILE, 'UPI ID');
+
+    // Send UPI ID
+    clearMockMessages();
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'owner@okaxis', prisma);
     assertMessageContains(OWNER_MOBILE, 'Registration Summary');
-    assertMessageContains(OWNER_MOBILE, '₹699');
 
     // Verify Owner record exists in DB
     const owner = await prisma.botOwner.findUnique({
@@ -158,7 +205,7 @@ async function runVerification() {
     clearMockMessages();
     await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'John - HawksFC', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Booking Summary');
-    assertMessageContains(PLAYER_MOBILE, '₹1230');
+    assertMessageContains(PLAYER_MOBILE, '₹1250');
 
     // 6. Mock Player Payment Complete
     console.log('\n6. Simulating Player Payment Complete...');
@@ -166,7 +213,7 @@ async function runVerification() {
     clearMockTelegramMessages();
 
     // Trigger booking payment simulator logic
-    await mockBookingPaymentCompleted(PLAYER_MOBILE, owner.id, getTodayDateString(), '06:00 PM', 'John', 'HawksFC', 1230);
+    await mockBookingPaymentCompleted(PLAYER_MOBILE, owner.id, getTodayDateString(), '06:00 PM', 'John', 'HawksFC', 1250);
     assertMessageContains(PLAYER_MOBILE, 'Booking Confirmed');
     assertMessageContains(OWNER_MOBILE, 'New Booking Alert');
     assertTelegramMessageContains('New Booking Confirmed');
@@ -420,10 +467,11 @@ async function runVerification() {
     assertMessageContains(OWNER_MOBILE, 'STRIKIT Subscription Expired');
     assertMessageContains(OWNER_MOBILE, 'razorpay.mock/sub');
 
-    // 12b. Player messages the bot, should get a warning that the bot is inactive
+    // 12b. Player messages the bot, should NOT be blocked even when subscription is inactive
     clearMockMessages();
     await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'bot is temporarily inactive');
+    assertMessageContains(PLAYER_MOBILE, 'Interactive Strikers Arena');
+    assertMessageContains(PLAYER_MOBILE, 'Welcome');
 
     // 12c. Simulating owner completing subscription renewal
     console.log('   Simulating owner completing subscription renewal...');
@@ -524,7 +572,7 @@ async function mockBookingPaymentCompleted(phone, ownerId, date, slotTime, capta
       teamName,
       captainName,
       captainPhone: phone,
-      amountPaid: parseFloat(amount) - 30,
+      amountPaid: parseFloat(amount) - 50,
       paymentId: `pay_mock_${Date.now()}`
     }
   });

@@ -54,6 +54,16 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
     }
   }
 
+  // 1. If the turf is not verified at all, block everyone (both owner and players)
+  if (!turfOwner.verified) {
+    if (phone === turfOwner.mobile) {
+      return whatsappService.sendText(phone, "⏳ Your turf verification is pending developer approval. We will notify you once approved!");
+    } else {
+      return whatsappService.sendText(phone, "⚠️ This booking bot is temporarily inactive. Please contact turf management directly.");
+    }
+  }
+
+  // 2. If subscription is expired, only block the OWNER from dashboard/settings commands
   if (!turfOwner.subscriptionActive) {
     if (phone === turfOwner.mobile) {
       const subLink = await paymentService.createSubscriptionLink(turfOwner.id);
@@ -66,9 +76,8 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
         `${subLink}\n\n` +
         `_Powered by STRIKIT_`
       );
-    } else {
-      return whatsappService.sendText(phone, "⚠️ This booking bot is temporarily inactive. Please contact turf management directly.");
     }
+    // Players are NOT blocked when subscription is inactive — they can proceed to book slots!
   }
 
   // 3. Turf Owner Commands: If the message sender is the owner of this turf
