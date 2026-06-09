@@ -1,6 +1,8 @@
 import express from 'express';
 import axios from 'axios';
 import { requireAdminKey } from '../middleware/security.js';
+import * as whatsappService from '../services/whatsappService.js';
+import * as paymentService from '../services/paymentService.js';
 
 const router = express.Router();
 
@@ -59,22 +61,38 @@ router.post('/owners/:id/approve', async (req, res) => {
       return res.status(404).json({ error: 'Owner not found' });
     }
 
-    const trialExpiry = new Date();
-    trialExpiry.setDate(trialExpiry.getDate() + 2); // 2 days free trial
-
     await prisma.botOwner.update({
       where: { id: ownerId },
-      data: { verified: true, subscriptionActive: true, subscriptionExpiry: trialExpiry }
+      data: { verified: true, subscriptionActive: false, subscriptionExpiry: null }
     });
 
-    // Update onboarding session to connect business number
+    const subLink = await paymentService.createSubscriptionLink(ownerId);
+
+    // Fetch existing context or build new one
+    const existingSession = await prisma.botSession.findUnique({ where: { phone: owner.mobile } });
+    const existingContext = JSON.parse(existingSession?.context || '{}');
+    const newContext = { ...existingContext, ownerId: ownerId };
+
     await prisma.botSession.upsert({
       where: { phone: owner.mobile },
-      update: { role: 'ONBOARDING', state: 'AWAITING_BUSINESS_CONNECT' },
-      create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_BUSINESS_CONNECT' }
+      update: { role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) },
+      create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) }
     });
 
-    res.json({ message: `Owner ${owner.name} approved successfully with a 2-day free trial.` });
+    try {
+      await whatsappService.sendText(
+        owner.mobile,
+        `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
+        `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+        `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
+        `${subLink}\n\n` +
+        `_Powered by STRIKIT_`
+      );
+    } catch (waErr) {
+      console.error('[Admin API Approve] Failed to send WhatsApp notification:', waErr.message);
+    }
+
+    res.json({ message: `Owner ${owner.name} approved successfully. Awaiting subscription payment.` });
   } catch (err) {
     console.error('Error approving owner:', err);
     res.status(500).json({ error: 'An internal error occurred' });
@@ -106,6 +124,16 @@ router.post('/owners/:id/reject', async (req, res) => {
 
     // Reset session
     await prisma.botSession.deleteMany({ where: { phone: owner.mobile } });
+
+    try {
+      await whatsappService.sendText(
+        owner.mobile,
+        `❌ Hello ${owner.name}, your STRIKIT registration for *${owner.turfName}* was rejected. Please contact support to check details.\n\n` +
+        `_Powered by STRIKIT_`
+      );
+    } catch (waErr) {
+      console.error('[Admin API Reject] Failed to send WhatsApp notification:', waErr.message);
+    }
 
     res.json({ message: `Owner ${owner.name} has been rejected/deactivated.` });
   } catch (err) {

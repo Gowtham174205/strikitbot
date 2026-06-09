@@ -47,28 +47,36 @@ async function sendTelegramRequest(method, payload) {
   }
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 export async function sendAlert(text) {
   const payload = {
-    text: `🔔 *STRIKIT Alert*\n\n${text}`,
-    parse_mode: 'Markdown'
+    text: `🔔 <b>STRIKIT Alert</b>\n\n${escapeHtml(text)}`,
+    parse_mode: 'HTML'
   };
   return sendTelegramRequest('sendMessage', payload);
 }
 
 export async function sendVerificationAlert(owner) {
-  const text = `🆕 *New Owner Onboarding*\n\n` +
-               `*Name:* ${owner.name}\n` +
-               `*Phone:* ${owner.mobile}\n` +
-               `*Turf:* ${owner.turfName}\n` +
-               `*Location:* ${owner.location}\n` +
-               `*Photos:* ${owner.photoUrls}\n` +
-               `*GST:* ${owner.gst || 'N/A'}\n` +
-               `*MSME:* ${owner.msme || 'N/A'}\n\n` +
+  const text = `🆕 <b>New Owner Onboarding</b>\n\n` +
+               `<b>Name:</b> ${escapeHtml(owner.name)}\n` +
+               `<b>Phone:</b> ${escapeHtml(owner.mobile)}\n` +
+               `<b>Turf:</b> ${escapeHtml(owner.turfName)}\n` +
+               `<b>Location:</b> ${escapeHtml(owner.location)}\n` +
+               `<b>Photos:</b> ${escapeHtml(owner.photoUrls)}\n` +
+               `<b>GST:</b> ${escapeHtml(owner.gst || 'N/A')}\n` +
+               `<b>MSME:</b> ${escapeHtml(owner.msme || 'N/A')}\n\n` +
                `Please verify details and action below:`;
 
   const payload = {
     text,
-    parse_mode: 'Markdown',
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [

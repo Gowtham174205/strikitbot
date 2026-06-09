@@ -1855,23 +1855,6 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
   const parts = text.split(/\s+/);
   const command = parts[0].toLowerCase();
   
-  if (parts.length < 2) {
-    await whatsappService.sendText(phone, "❌ Format error. Please send: /approve [OwnerId], /reject [OwnerId], /deactivate [OwnerId] or /activate [OwnerId]");
-    return;
-  }
-  
-  const ownerId = parseInt(parts[1], 10);
-  if (isNaN(ownerId)) {
-    await whatsappService.sendText(phone, "❌ Invalid Owner ID. Please specify a numeric ID.");
-    return;
-  }
-  
-  const owner = await prisma.botOwner.findUnique({ where: { id: ownerId } });
-  if (!owner) {
-    await whatsappService.sendText(phone, `❌ Owner with ID ${ownerId} not found.`);
-    return;
-  }
-  
   if (command === '/approve') {
     await prisma.botOwner.update({
       where: { id: ownerId },
@@ -1892,17 +1875,25 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
     });
 
     // Send confirmation to Developer who approved
-    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been approved successfully! Awaiting subscription payment.`);
+    try {
+      await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been approved successfully! Awaiting subscription payment.`);
+    } catch (err) {
+      console.error('[Dev Command Approve Alert] Failed:', err.message);
+    }
 
     // Notify Owner on their onboarding number
-    await whatsappService.sendText(
-      owner.mobile,
-      `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
-      `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
-      `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
-      `${subLink}\n\n` +
-      `_Powered by STRIKIT_`
-    );
+    try {
+      await whatsappService.sendText(
+        owner.mobile,
+        `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
+        `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+        `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
+        `${subLink}\n\n` +
+        `_Powered by STRIKIT_`
+      );
+    } catch (err) {
+      console.error('[Dev Command Approve Notify] Failed:', err.message);
+    }
   } else if (command === '/reject') {
     await prisma.botOwner.update({
       where: { id: ownerId },
@@ -1910,28 +1901,44 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
     });
 
     // Send confirmation to Developer who rejected
-    await whatsappService.sendText(phone, `❌ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been rejected.`);
+    try {
+      await whatsappService.sendText(phone, `❌ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been rejected.`);
+    } catch (err) {
+      console.error('[Dev Command Reject Alert] Failed:', err.message);
+    }
 
     // Notify Owner on their onboarding number
-    await whatsappService.sendText(
-      owner.mobile,
-      `❌ Hello ${owner.name}, your STRIKIT registration for *${owner.turfName}* was rejected. Please contact support to check details.\n\n` +
-      `_Powered by STRIKIT_`
-    );
+    try {
+      await whatsappService.sendText(
+        owner.mobile,
+        `❌ Hello ${owner.name}, your STRIKIT registration for *${owner.turfName}* was rejected. Please contact support to check details.\n\n` +
+        `_Powered by STRIKIT_`
+      );
+    } catch (err) {
+      console.error('[Dev Command Reject Notify] Failed:', err.message);
+    }
   } else if (command === '/deactivate') {
     await prisma.botOwner.update({
       where: { id: ownerId },
       data: { subscriptionActive: false, subscriptionExpiry: new Date() }
     });
 
-    await whatsappService.sendText(phone, `⚠️ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been deactivated.`);
+    try {
+      await whatsappService.sendText(phone, `⚠️ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been deactivated.`);
+    } catch (err) {
+      console.error('[Dev Command Deactivate Alert] Failed:', err.message);
+    }
 
     // Notify Owner
-    await whatsappService.sendText(
-      owner.mobile,
-      `⚠️ *STRIKIT Notification:* Your bot subscription for *${owner.turfName}* has been deactivated by the admin. Please contact support to reactivate.\n\n` +
-      `_Powered by STRIKIT_`
-    );
+    try {
+      await whatsappService.sendText(
+        owner.mobile,
+        `⚠️ *STRIKIT Notification:* Your bot subscription for *${owner.turfName}* has been deactivated by the admin. Please contact support to reactivate.\n\n` +
+        `_Powered by STRIKIT_`
+      );
+    } catch (err) {
+      console.error('[Dev Command Deactivate Notify] Failed:', err.message);
+    }
   } else if (command === '/activate') {
     const activationExpiry = new Date();
     activationExpiry.setDate(activationExpiry.getDate() + 30); // 30 days activation
@@ -1941,16 +1948,25 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
       data: { subscriptionActive: true, subscriptionExpiry: activationExpiry }
     });
 
-    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been reactivated successfully for 30 days!`);
+    try {
+      await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been reactivated successfully for 30 days!`);
+    } catch (err) {
+      console.error('[Dev Command Activate Alert] Failed:', err.message);
+    }
 
     // Notify Owner
-    await whatsappService.sendText(
-      owner.mobile,
-      `🎉 *STRIKIT Notification:* Your bot subscription for *${owner.turfName}* has been reactivated successfully for 30 days! 🚀\n\n` +
-      `_Powered by STRIKIT_`
-    );
+    try {
+      await whatsappService.sendText(
+        owner.mobile,
+        `🎉 *STRIKIT Notification:* Your bot subscription for *${owner.turfName}* has been reactivated successfully for 30 days! 🚀\n\n` +
+        `_Powered by STRIKIT_`
+      );
+    } catch (err) {
+      console.error('[Dev Command Activate Notify] Failed:', err.message);
+    }
   }
 }
+
 
 export async function handleCentralizedPlayerFlow(phone, text, prisma, mediaId = '', mediaType = '') {
   const lowerText = text.toLowerCase().trim();

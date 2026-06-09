@@ -167,17 +167,21 @@ export async function handleTelegramWebhook(req, res, prisma) {
           create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) }
         });
 
-        const updatedText = message.text + `\n\n✅ *Status: APPROVED*`;
+        const updatedText = message.text + `\n\n✅ <b>Status: APPROVED</b>`;
         await editTelegramMessage(message.chat.id, message.message_id, updatedText);
 
-        await whatsappService.sendText(
-          owner.mobile,
-          `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
-          `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
-          `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
-          `${subLink}\n\n` +
-          `_Powered by STRIKIT_`
-        );
+        try {
+          await whatsappService.sendText(
+            owner.mobile,
+            `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
+            `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+            `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
+            `${subLink}\n\n` +
+            `_Powered by STRIKIT_`
+          );
+        } catch (waErr) {
+          console.error('[Telegram Approve Callback] Failed to send WhatsApp notification:', waErr.message);
+        }
 
         await answerCallbackQuery(callbackQueryId, 'Owner approved successfully!');
       } else if (action === 'REJECT') {
@@ -186,13 +190,17 @@ export async function handleTelegramWebhook(req, res, prisma) {
           data: { verified: false, subscriptionActive: false }
         });
 
-        const updatedText = message.text + `\n\n❌ *Status: REJECTED*`;
+        const updatedText = message.text + `\n\n❌ <b>Status: REJECTED</b>`;
         await editTelegramMessage(message.chat.id, message.message_id, updatedText);
 
-        await whatsappService.sendText(
-          owner.mobile,
-          `❌ Hello ${owner.name}, your STRIKIT registration for ${owner.turfName} was rejected. Please contact support to check details.`
-        );
+        try {
+          await whatsappService.sendText(
+            owner.mobile,
+            `❌ Hello ${owner.name}, your STRIKIT registration for ${owner.turfName} was rejected. Please contact support to check details.`
+          );
+        } catch (waErr) {
+          console.error('[Telegram Reject Callback] Failed to send WhatsApp notification:', waErr.message);
+        }
 
         await answerCallbackQuery(callbackQueryId, 'Owner rejected.');
       }
@@ -226,7 +234,7 @@ async function editTelegramMessage(chatId, messageId, text) {
       chat_id: chatId,
       message_id: messageId,
       text,
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: { inline_keyboard: [] }
     });
   } catch (err) {
