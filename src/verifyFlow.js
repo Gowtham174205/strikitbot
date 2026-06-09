@@ -69,10 +69,10 @@ async function runVerification() {
     await prisma.botSession.deleteMany();
     await prisma.botOwner.deleteMany();
 
-    // 1. Simulate Owner Sends "Hi" to Onboarding
+    // 1. Simulate Owner Sends "register" to Onboarding
     console.log('\n1. Owner registers on Onboarding bot...');
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'Hi', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'register', prisma);
     assertMessageContains(OWNER_MOBILE, 'Owner Name');
 
     // Send name
@@ -83,8 +83,8 @@ async function runVerification() {
     await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'Strikers Turf', prisma);
     assertMessageContains(OWNER_MOBILE, 'Location');
 
-    // Send Location
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'https://maps.google.com/?q=Chennai', prisma);
+    // Send Location (with coordinates in URL)
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'https://maps.google.com/?q=12.9715987,77.5945627', prisma);
     assertMessageContains(OWNER_MOBILE, 'Turf Photos');
 
     // Send photos via media upload (image type)
@@ -92,13 +92,8 @@ async function runVerification() {
     assertMessageContains(OWNER_MOBILE, 'Turf Photo uploaded successfully');
     assertMessageContains(OWNER_MOBILE, 'GST');
 
-    // Send GST
+    // Send GST (skipping MSME step)
     await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '33AAAAA1111A1Z1', prisma);
-    assertMessageContains(OWNER_MOBILE, 'MSME');
-
-    // Send MSME certificate via media upload (document type)
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '', prisma, 'media_msme_doc_456', 'document');
-    assertMessageContains(OWNER_MOBILE, 'MSME Certificate uploaded successfully');
     assertMessageContains(OWNER_MOBILE, 'Opening Time');
 
     // Send Opening Time
@@ -126,24 +121,8 @@ async function runVerification() {
     if (!owner) throw new Error('Owner failed to save in database');
     console.log('✅ Owner registered in DB:', owner.name, '-', owner.turfName);
 
-    // 2. Mock Owner Subscription Payment (₹699)
-    console.log('\n2. Simulating Owner Subscription Payment via Razorpay...');
-    clearMockMessages();
-    clearMockTelegramMessages();
-
-    // Update Bot Session state to Awaiting Verification
-    await prisma.botSession.update({
-      where: { phone: OWNER_MOBILE },
-      data: { state: 'ONBOARDING_AWAITING_VERIFICATION' }
-    });
-
-    // Notify Owner and Developer
-    await mockSubscriptionPaymentCompleted(owner.id);
-    assertMessageContains(OWNER_MOBILE, 'Payment of ₹699 verified');
-    assertTelegramMessageContains('New Owner Onboarding');
-
-    // 3. Developer Approves Owner via Telegram
-    console.log('\n3. Developer Approves Owner via Telegram Inline Button...');
+    // 2. Developer Approves Owner via Telegram
+    console.log('\n2. Developer Approves Owner via Telegram Inline Button...');
     clearMockMessages();
     const mockReq = {
       body: {
@@ -163,47 +142,68 @@ async function runVerification() {
     };
     await handleTelegramWebhook(mockReq, mockRes, prisma);
 
-    // Verify Owner is updated to verified
+    // Verify Owner is updated to verified but subscription is inactive
     const verifiedOwner = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (!verifiedOwner.verified) throw new Error('Owner was not verified by Telegram action');
+    if (verifiedOwner.subscriptionActive) throw new Error('Owner subscription should not be active before payment');
     assertMessageContains(OWNER_MOBILE, 'APPROVED');
+    assertMessageContains(OWNER_MOBILE, 'Subscription Link');
 
-    // 4. Connect WhatsApp Business Number (direct number connection)
-    console.log('\n4. Owner connects WhatsApp Business number directly...');
+    // Check session state is AWAITING_SUBSCRIPTION
+    const sessionAfterApprove = await prisma.botSession.findUnique({ where: { phone: OWNER_MOBILE } });
+    if (sessionAfterApprove.state !== 'AWAITING_SUBSCRIPTION') {
+      throw new Error(`Expected session state AWAITING_SUBSCRIPTION, got ${sessionAfterApprove.state}`);
+    }
+
+    // 3. Simulating Owner Subscription Payment (₹699)
+    console.log('\n3. Simulating Owner Onboarding Subscription Payment...');
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, BUSINESS_NUMBER, prisma);
-    assertMessageContains(OWNER_MOBILE, 'STRIKIT Bot is now active');
+    
+    // Simulate webhook updates and welcomes
+    await mockSubscriptionPaymentCompleted(owner.id);
+    assertMessageContains(OWNER_MOBILE, 'Welcome to STRIKIT');
+    assertMessageContains(OWNER_MOBILE, 'api.qrserver.com'); // QR code link is sent
 
-    const connectedOwner = await prisma.botOwner.findUnique({ where: { id: owner.id } });
-    if (connectedOwner.businessPhone !== BUSINESS_NUMBER) throw new Error('Business number connection failed');
-    console.log('✅ WhatsApp Business connected in DB:', connectedOwner.businessPhone);
+    // Verify Owner is updated to active subscription and session is set to OWNER_DASHBOARD
+    const activeOwner = await prisma.botOwner.findUnique({ where: { id: owner.id } });
+    if (!activeOwner.subscriptionActive) throw new Error('Owner subscription is not active after payment');
+    const ownerSession = await prisma.botSession.findUnique({ where: { phone: OWNER_MOBILE } });
+    if (ownerSession.state !== 'OWNER_DASHBOARD') throw new Error('Owner session was not set to OWNER_DASHBOARD');
 
-    // 5. Player Booking Flow (I Have Team)
-    console.log('\n5. Player starts Team Booking flow...');
+    // 4. Player Booking Flow (I Have Team) on the main number
+    console.log('\n4. Player starts Team Booking flow on the main number...');
     clearMockMessages();
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'Hi', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'share your current location');
+
+    // Send location payload (should find Strikers Turf within 10km)
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'location:12.9715987,77.5945627', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'Nearby Turfs Found');
     assertMessageContains(PLAYER_MOBILE, 'Strikers Turf');
+
+    // Player selects option 1 (Strikers Turf)
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, '1', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Welcome');
 
     // Choose option 1
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'opt_team', prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'opt_team', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Select a Date');
 
     // Choose Date (Today)
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, `date_${getTodayDateString()}`, prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, `date_${getTodayDateString()}`, prisma);
     assertMessageContains(PLAYER_MOBILE, 'Choose a Time Period');
 
     // Choose period (Evening)
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'period_evening', prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'period_evening', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Select an Available Slot');
 
     // Select Slot
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '06:00 PM', prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, '06:00 PM', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Name and Team Name');
 
     // Enter details
     clearMockMessages();
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'John - HawksFC', prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'John - HawksFC', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Booking Summary');
     assertMessageContains(PLAYER_MOBILE, '₹1250');
 
@@ -230,29 +230,39 @@ async function runVerification() {
     // 7. Single Player Join Request
     console.log('\n7. Single Player Join Request Flow...');
     clearMockMessages();
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
+    
+    // Sends "Hi" to main number, gets location prompt
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, 'Hi', prisma);
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'share your current location');
+
+    // Sends location payload, gets turfs list
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, 'location:12.9715987,77.5945627', prisma);
+    assertMessageContains(SINGLE_PLAYER_MOBILE, 'Nearby Turfs Found');
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Strikers Turf');
+
+    // Selects option 1 (Strikers Turf), gets welcome menu
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, '1', prisma);
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Welcome');
 
     // Select Option 2 (Single Player)
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'opt_single', prisma);
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, 'opt_single', prisma);
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Select a Date');
 
     // Select Date (Today)
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, `date_${getTodayDateString()}`, prisma);
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, `date_${getTodayDateString()}`, prisma);
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Choose a Time Period');
 
     // Choose period (Evening)
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'period_evening', prisma);
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, 'period_evening', prisma);
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Select a Slot to Join');
 
     // Select booked slot
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, '06:00 PM', prisma);
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, '06:00 PM', prisma);
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'enter your Name');
 
     // Enter name
     clearMockMessages();
-    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, BUSINESS_NUMBER, 'Giri', prisma);
+    await handleWhatsAppWebhook(SINGLE_PLAYER_MOBILE, ONBOARDING_NUMBER, 'Giri', prisma);
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'STRIKIT Platform Fee');
     assertMessageContains(SINGLE_PLAYER_MOBILE, '₹9');
     assertMessageContains(SINGLE_PLAYER_MOBILE, 'Non-Refundable');
@@ -283,12 +293,12 @@ async function runVerification() {
     clearMockTelegramMessages();
     
     // Captain clicks Accept button
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, `captain_accept_${joinReq.id}`, prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, `captain_accept_${joinReq.id}`, prisma);
     assertMessageContains(PLAYER_MOBILE, 'joining amount');
 
     // Captain types amount
     clearMockMessages();
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, '150', prisma);
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, '150', prisma);
     
     assertMessageContains(PLAYER_MOBILE, 'accepted');
     assertMessageContains(PLAYER_MOBILE, 'Giri');
@@ -305,18 +315,22 @@ async function runVerification() {
     // 9. Turf Owner dashboard commands (commands still supported)
     console.log('\n9. Testing Turf Owner commands...');
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/bookings', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/bookings', prisma);
     assertMessageContains(OWNER_MOBILE, 'Strikers Turf');
     assertMessageContains(OWNER_MOBILE, 'HawksFC');
 
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/revenue', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/revenue', prisma);
     assertMessageContains(OWNER_MOBILE, 'Revenue Summary');
     assertMessageContains(OWNER_MOBILE, 'Gross Revenue: ₹1200');
 
     // PDF report generation
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/report', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/report', prisma);
+    assertMessageContains(OWNER_MOBILE, 'Select PDF Report Range');
+
+    // Choose 3 (All-Time)
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '3', prisma);
     assertMessageContains(OWNER_MOBILE, 'report_');
     assertMessageContains(OWNER_MOBILE, '.pdf');
 
@@ -333,7 +347,7 @@ async function runVerification() {
     // 10. Owner Block slot command
     console.log('\n10. Testing Block / Unblock slots commands...');
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `/block ${getTodayDateString()} 09:00 PM`, prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, `/block ${getTodayDateString()} 09:00 PM`, prisma);
     assertMessageContains(OWNER_MOBILE, 'blocked');
 
     const blockedSlot = await prisma.botTurfSlot.findUnique({
@@ -347,20 +361,20 @@ async function runVerification() {
     clearMockMessages();
     
     // Owner triggers dashboard menu
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'hi', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'hi', prisma);
     assertMessageContains(OWNER_MOBILE, 'Owner Control Panel');
 
     // Select dashboard_block_slot
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'dashboard_block_slot', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'dashboard_block_slot', prisma);
     assertMessageContains(OWNER_MOBILE, 'Select a Date for Block/Unblock');
 
     // Select Today
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `block_date_${getTodayDateString()}`, prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, `block_date_${getTodayDateString()}`, prisma);
     assertMessageContains(OWNER_MOBILE, 'Slot Availability Dashboard');
 
     // Toggle 08:00 PM slot (Block it)
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `toggle_block_${getTodayDateString()}_08:00 PM`, prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, `toggle_block_${getTodayDateString()}_08:00 PM`, prisma);
     assertMessageContains(OWNER_MOBILE, 'blocked');
 
     const toggledBlockedSlot = await prisma.botTurfSlot.findUnique({
@@ -371,7 +385,7 @@ async function runVerification() {
 
     // Toggle 08:00 PM slot again (Unblock it)
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, `toggle_block_${getTodayDateString()}_08:00 PM`, prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, `toggle_block_${getTodayDateString()}_08:00 PM`, prisma);
     assertMessageContains(OWNER_MOBILE, 'unblocked');
 
     const toggledOpenSlot = await prisma.botTurfSlot.findUnique({
@@ -385,7 +399,7 @@ async function runVerification() {
     clearMockMessages();
     
     // Edit Turf Name
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit name New Strikers Turf', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/edit name New Strikers Turf', prisma);
     assertMessageContains(OWNER_MOBILE, 'updated to: *New Strikers Turf*');
     
     const ownerNameCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
@@ -396,20 +410,20 @@ async function runVerification() {
     clearMockMessages();
     
     // Owner triggers menu
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'hi', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'hi', prisma);
     assertMessageContains(OWNER_MOBILE, 'Owner Control Panel');
 
     // Selects "dashboard_edit_settings"
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'dashboard_edit_settings', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'dashboard_edit_settings', prisma);
     assertMessageContains(OWNER_MOBILE, 'Edit Turf Settings');
 
     // Selects "edit_name"
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'edit_name', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'edit_name', prisma);
     assertMessageContains(OWNER_MOBILE, 'new Turf Name');
 
     // Types new turf name
     clearMockMessages();
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'Interactive Strikers Arena', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'Interactive Strikers Arena', prisma);
     assertMessageContains(OWNER_MOBILE, 'updated to: *Interactive Strikers Arena*');
 
     const updatedOwnerCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
@@ -417,32 +431,32 @@ async function runVerification() {
     console.log('   [Pass] Interactive settings edit succeeded');
 
     // Edit Turf Price (command check)
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit price 1500', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/edit price 1500', prisma);
     assertMessageContains(OWNER_MOBILE, 'updated to: *₹1500*');
 
     const ownerPriceCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerPriceCheck.pricePerHour !== 1500) throw new Error('Turf price edit failed in DB');
 
     // Edit Owner Name
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit ownername Gowtham P. New', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/edit ownername Gowtham P. New', prisma);
     assertMessageContains(OWNER_MOBILE, 'Owner name successfully updated to: *Gowtham P. New*');
     const ownerNameUpdateCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerNameUpdateCheck.name !== 'Gowtham P. New') throw new Error('Owner name update failed in DB');
 
     // Edit Turf Photos
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit photos http://photos.link/new-strikers', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/edit photos http://photos.link/new-strikers', prisma);
     assertMessageContains(OWNER_MOBILE, 'photos link successfully updated to: *http://photos.link/new-strikers*');
     const ownerPhotosCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerPhotosCheck.photoUrls !== 'http://photos.link/new-strikers') throw new Error('Turf photos update failed in DB');
 
     // Edit GST
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit gst 33AAAAA1111A1Z1', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/edit gst 33AAAAA1111A1Z1', prisma);
     assertMessageContains(OWNER_MOBILE, 'GST number successfully updated to: *33AAAAA1111A1Z1*');
     const ownerGstCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerGstCheck.gst !== '33AAAAA1111A1Z1') throw new Error('GST update failed in DB');
 
     // Edit MSME
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, '/edit msme UDYAM-TN-01-0123456', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, '/edit msme UDYAM-TN-01-0123456', prisma);
     assertMessageContains(OWNER_MOBILE, 'MSME certificate successfully updated to: *UDYAM-TN-01-0123456*');
     const ownerMsmeCheck = await prisma.botOwner.findUnique({ where: { id: owner.id } });
     if (ownerMsmeCheck.msme !== 'UDYAM-TN-01-0123456') throw new Error('MSME update failed in DB');
@@ -463,14 +477,17 @@ async function runVerification() {
     });
 
     // 12a. Owner messages the bot, should get a subscription expired warning with Razorpay link
-    await handleWhatsAppWebhook(OWNER_MOBILE, BUSINESS_NUMBER, 'Hello', prisma);
+    await handleWhatsAppWebhook(OWNER_MOBILE, ONBOARDING_NUMBER, 'Hello', prisma);
     assertMessageContains(OWNER_MOBILE, 'STRIKIT Subscription Expired');
     assertMessageContains(OWNER_MOBILE, 'razorpay.mock/sub');
 
     // 12b. Player messages the bot, should NOT be blocked even when subscription is inactive
     clearMockMessages();
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'Interactive Strikers Arena');
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'Hi', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'book a slot at *Interactive Strikers Arena* again');
+    
+    // Select Yes to proceed
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, '1', prisma);
     assertMessageContains(PLAYER_MOBILE, 'Welcome');
 
     // 12c. Simulating owner completing subscription renewal
@@ -491,8 +508,8 @@ async function runVerification() {
 
     // 12d. Check if the bot is active again
     clearMockMessages();
-    await handleWhatsAppWebhook(PLAYER_MOBILE, BUSINESS_NUMBER, 'Hi', prisma);
-    assertMessageContains(PLAYER_MOBILE, 'Welcome');
+    await handleWhatsAppWebhook(PLAYER_MOBILE, ONBOARDING_NUMBER, 'Hi', prisma);
+    assertMessageContains(PLAYER_MOBILE, 'book a slot at *Interactive Strikers Arena* again');
     console.log('✅ Expired bot successfully locked and unlocked via self-service subscription renewal simulation');
 
     console.log('\n======================================================');
@@ -555,8 +572,66 @@ function getTodayDateString() {
 
 async function mockSubscriptionPaymentCompleted(ownerId) {
   const owner = await prisma.botOwner.findUnique({ where: { id: ownerId } });
-  await mockWhatsAppOutgoing(owner.mobile, `💳 Payment of ₹699 verified successfully! Auto-Pay has been set up for future monthly renewals. Your details have been sent to the developer for verification.`);
-  await mockTelegramAlert(`🆕 New Owner Onboarding:\nOwner: ${owner.name}\nTurf: ${owner.turfName}\nMobile: ${owner.mobile}\n\nApprove: verify_approve_${owner.id}`);
+  
+  if (owner.verified) {
+    const activationExpiry = new Date();
+    activationExpiry.setDate(activationExpiry.getDate() + 30);
+
+    await prisma.botOwner.update({
+      where: { id: owner.id },
+      data: { subscriptionActive: true, subscriptionExpiry: activationExpiry }
+    });
+
+    await prisma.botSession.upsert({
+      where: { phone: owner.mobile },
+      update: { role: 'OWNER', state: 'OWNER_DASHBOARD', context: '{}' },
+      create: { phone: owner.mobile, role: 'OWNER', state: 'OWNER_DASHBOARD', context: '{}' }
+    });
+
+    const botNum = (process.env.ONBOARDING_NUMBER || '919360756749').replace(/[^0-9]/g, '');
+    const qrText = `Book ${owner.turfName}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://wa.me/${botNum}?text=${encodeURIComponent(qrText)}`)}`;
+
+    mockSentMessages.push({
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: owner.mobile,
+      type: 'image',
+      image: {
+        link: qrCodeUrl,
+        caption: `🎉 *Welcome to STRIKIT, ${owner.name}!* 🎉\n\n` +
+          `Your subscription payment of *₹699.00* has been verified successfully!\n\n` +
+          `Your turf *${owner.turfName}* is now ACTIVE on STRIKIT. 🚀\n\n` +
+          `📸 *Your Permanent Booking QR Code is attached!*\n` +
+          `Players can scan this QR code or click the link below to book slots directly:\n` +
+          `🔗 https://wa.me/${botNum}?text=${encodeURIComponent(qrText)}\n\n` +
+          `*Turf Owner Control Panel:* Message this number anytime to manage bookings and reports:\n` +
+          `• \`/bookings\` - Real-time booking dashboard\n` +
+          `• \`/revenue\` - Earnings stats\n` +
+          `• \`/report\` - Generate premium PDF transaction sheets\n` +
+          `• \`/block [Date] [Time]\` - Block slots (e.g. \`/block 2026-06-06 06:00 PM\`)\n` +
+          `• \`/unblock [Date] [Time]\` - Restore slots\n` +
+          `• \`/edit\` - Edit turf settings\n\n` +
+          `_Powered by STRIKIT_`
+      }
+    });
+  } else {
+    await prisma.botSession.upsert({
+      where: { phone: owner.mobile },
+      update: { state: 'ONBOARDING_AWAITING_VERIFICATION' },
+      create: { phone: owner.mobile, role: 'ONBOARDING', state: 'ONBOARDING_AWAITING_VERIFICATION' }
+    });
+
+    await mockWhatsAppOutgoing(
+      owner.mobile,
+      `💳 *STRIKIT Subscription Payment Verified!* 💳\n\n` +
+      `Hello ${owner.name}, your payment of *₹699.00* has been verified successfully!\n\n` +
+      `🔄 *Auto-Pay Setup:* Monthly recurring payments are active for subsequent renewals.\n` +
+      `⏳ *Verification:* Your turf details for *${owner.turfName}* are sent to the developers. You will receive an activation alert as soon as the developer reviews and approves them.\n\n` +
+      `Thank you for choosing STRIKIT to automate your turf! ⚽🚀\n\n` +
+      `_Powered by STRIKIT_`
+    );
+  }
 }
 
 async function mockBookingPaymentCompleted(phone, ownerId, date, slotTime, captainName, teamName, amount) {

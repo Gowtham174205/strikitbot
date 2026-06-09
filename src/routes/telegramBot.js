@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { generatePlatformReport } from '../services/pdfGenerator.js';
 import { sendPlatformReport } from '../services/telegramService.js';
+import * as paymentService from '../services/paymentService.js';
 
 dotenv.config();
 
@@ -148,18 +149,22 @@ export async function handleTelegramWebhook(req, res, prisma) {
       }
 
       if (action === 'APPROVE') {
-        const trialExpiry = new Date();
-        trialExpiry.setDate(trialExpiry.getDate() + 2); // 2-day free trial
-
         await prisma.botOwner.update({
           where: { id: ownerId },
-          data: { verified: true, subscriptionActive: true, subscriptionExpiry: trialExpiry }
+          data: { verified: true, subscriptionActive: false, subscriptionExpiry: null }
         });
+
+        const subLink = await paymentService.createSubscriptionLink(ownerId);
+
+        // Fetch existing context or build new one
+        const existingSession = await prisma.botSession.findUnique({ where: { phone: owner.mobile } });
+        const existingContext = JSON.parse(existingSession?.context || '{}');
+        const newContext = { ...existingContext, ownerId: ownerId };
 
         await prisma.botSession.upsert({
           where: { phone: owner.mobile },
-          update: { state: 'AWAITING_BUSINESS_CONNECT' },
-          create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_BUSINESS_CONNECT' }
+          update: { role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) },
+          create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) }
         });
 
         const updatedText = message.text + `\n\n✅ *Status: APPROVED*`;
@@ -168,9 +173,9 @@ export async function handleTelegramWebhook(req, res, prisma) {
         await whatsappService.sendText(
           owner.mobile,
           `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
-          `Your turf *${owner.turfName}* has been verified by the developer and your 2-Day Free Trial is now active!\n\n` +
-          `📲 *Final Step:* Please connect your WhatsApp Business Number to this bot now by typing:\n` +
-          `👉 \`/connect [WhatsAppNumber]\` (e.g., \`/connect 919876543210\`)\n\n` +
+          `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+          `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
+          `${subLink}\n\n` +
           `_Powered by STRIKIT_`
         );
 

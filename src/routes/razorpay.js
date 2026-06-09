@@ -80,15 +80,31 @@ router.post('/webhook', async (req, res) => {
 
           await prisma.botSession.upsert({
             where: { phone: owner.mobile },
-            update: { role: 'OWNER', state: 'OWNER_DASHBOARD' },
-            create: { phone: owner.mobile, role: 'OWNER', state: 'OWNER_DASHBOARD' }
+            update: { role: 'OWNER', state: 'OWNER_DASHBOARD', context: '{}' },
+            create: { phone: owner.mobile, role: 'OWNER', state: 'OWNER_DASHBOARD', context: '{}' }
           });
 
-          await whatsappService.sendText(
+          // Generate QR Code URL
+          const botNum = (process.env.ONBOARDING_NUMBER || '919360756749').replace(/[^0-9]/g, '');
+          const qrText = `Book ${owner.turfName}`;
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://wa.me/${botNum}?text=${encodeURIComponent(qrText)}`)}`;
+
+          await whatsappService.sendImage(
             owner.mobile,
-            `🎉 *STRIKIT Subscription Renewed!* 🎉\n\n` +
-            `Hello ${owner.name}, your renewal payment of *₹699.00* has been verified successfully!\n\n` +
-            `Your turf *${owner.turfName}* bot has been reactivated for the next 30 days! 🚀\n\n` +
+            qrCodeUrl,
+            `🎉 *Welcome to STRIKIT, ${owner.name}!* 🎉\n\n` +
+            `Your subscription payment of *₹699.00* has been verified successfully!\n\n` +
+            `Your turf *${owner.turfName}* is now ACTIVE on STRIKIT. 🚀\n\n` +
+            `📸 *Your Permanent Booking QR Code is attached!*\n` +
+            `Players can scan this QR code or click the link below to book slots directly:\n` +
+            `🔗 https://wa.me/${botNum}?text=${encodeURIComponent(qrText)}\n\n` +
+            `*Turf Owner Control Panel:* Message this number anytime to manage bookings and reports:\n` +
+            `• \`/bookings\` - Real-time booking dashboard\n` +
+            `• \`/revenue\` - Earnings stats\n` +
+            `• \`/report\` - Generate premium PDF transaction sheets\n` +
+            `• \`/block [Date] [Time]\` - Block slots (e.g. \`/block 2026-06-06 06:00 PM\`)\n` +
+            `• \`/unblock [Date] [Time]\` - Restore slots\n` +
+            `• \`/edit\` - Edit turf settings\n\n` +
             `_Powered by STRIKIT_`
           );
         } else {
@@ -172,16 +188,13 @@ router.post('/webhook', async (req, res) => {
 
         await whatsappService.sendText(
           phone,
-          `⚽ *Booking Confirmed at ${owner.turfName}!* ⚽\n\n` +
-          `Hello ${captainName}, thank you for booking with us! Your slot has been successfully reserved.\n\n` +
-          `*Booking Details:*\n` +
-          `• Turf: *${owner.turfName}*\n` +
-          `• Date: ${date}\n` +
-          `• Time Slot: ${slotTime}\n` +
-          `• Team Name: ${teamName}\n` +
-          `• Platform Fee Paid: ₹50.00\n` +
-          `• Turf Amount Paid: ₹${booking.amountPaid.toFixed(2)}\n\n` +
-          `Present this booking confirmation at the turf entrance. Have an amazing game! 🏃‍♂️🔥\n\n` +
+          `🎉 *Booking Confirmed!* 🎉\n\n` +
+          `Thank you ${captainName || 'Player'}, your booking at *${owner.turfName}* has been verified successfully!\n\n` +
+          `📅 *Date:* ${date}\n` +
+          `⏰ *Time Slot:* ${slotTime}\n` +
+          `💰 *Amount Paid:* ₹${amount}\n` +
+          `📍 *Directions:* ${owner.location}\n\n` +
+          `Get ready for your match! ⚽🔥\n\n` +
           `_Powered by STRIKIT_`
         );
 

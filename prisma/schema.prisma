@@ -1208,6 +1208,8 @@ model BotOwner {
   openingTime           String        @default("06:00 AM")
   closingTime           String        @default("10:00 PM")
   pricePerHour          Float         @default(1000.0)
+  latitude              Float?
+  longitude             Float?
   slots                 BotTurfSlot[]
 }
 

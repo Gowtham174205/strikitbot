@@ -2,8 +2,10 @@ import * as whatsappService from '../services/whatsappService.js';
 import * as telegramService from '../services/telegramService.js';
 import { generateRevenueReport } from '../services/pdfGenerator.js';
 import path from 'path';
+import fs from 'fs';
 import { sanitizeInput } from '../middleware/security.js';
 import * as paymentService from '../services/paymentService.js';
+import axios from 'axios';
 
 const ONBOARDING_NUMBER = process.env.ONBOARDING_NUMBER || '919000000000';
 
@@ -27,18 +29,89 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
     }
   }
 
-  // 1. ROUTING: Check if this message was sent to the STRIKIT Onboarding Number
+  // 1. ROUTING: Centralized WhatsApp Bot Routing
+  // If the destination is the STRIKIT Bot number, handle everything on this one number.
   if (to === ONBOARDING_NUMBER || to === process.env.WHATSAPP_PHONE_NUMBER_ID) {
-    return handleOnboardingFlow(phone, text, prisma, mediaId, mediaType);
+    const lowerText = text.toLowerCase().trim();
+
+    // Check if sender is a registered Owner
+    const owner = await prisma.botOwner.findUnique({
+      where: { mobile: phone }
+    });
+
+    if (owner) {
+      // If owner is still in onboarding state (has session with role ONBOARDING)
+      const session = await prisma.botSession.findUnique({ where: { phone } });
+      if (session && session.role === 'ONBOARDING') {
+        return handleOnboardingFlow(phone, text, prisma, mediaId, mediaType);
+      }
+
+      // Check subscription expiration
+      if (owner.subscriptionActive && owner.subscriptionExpiry) {
+        const now = new Date();
+        if (now > new Date(owner.subscriptionExpiry)) {
+          await prisma.botOwner.update({
+            where: { id: owner.id },
+            data: { subscriptionActive: false }
+          });
+          owner.subscriptionActive = false;
+        }
+      }
+
+      // If not verified yet
+      if (!owner.verified) {
+        return whatsappService.sendText(phone, "⏳ Your turf verification is pending developer approval. We will notify you once approved!");
+      }
+
+      // If subscription is expired, block owner commands and show warning with benefits checklist
+      if (!owner.subscriptionActive) {
+        const subLink = await paymentService.createSubscriptionLink(owner.id);
+        return whatsappService.sendText(
+          phone,
+          `⚠️ *STRIKIT Subscription Expired* ⚠️\n\n` +
+          `Dear ${owner.name}, your subscription for *${owner.turfName}* has expired.\n\n` +
+          `To restore access to your owner commands, reports, and settings, please renew your ₹699.00 monthly subscription:\n` +
+          `🔗 *Payment Link:* ${subLink}\n\n` +
+          `*Subscriber Benefits Include:*\n` +
+          `• 📊 Real-Time booking dashboard\n` +
+          `• 📈 Automated WhatsApp Monthly PDF reports\n` +
+          `• 🚫 Slot blocking and management commands\n` +
+          `• ⚙️ Pricing and timings customization\n\n` +
+          `_Powered by STRIKIT_`
+        );
+      }
+
+      // Active Owner commands
+      return handleOwnerCommands(phone, text, owner, prisma, mediaId, mediaType);
+    }
+
+    // Not a registered owner - check if they have onboarding session in progress
+    const session = await prisma.botSession.findUnique({ where: { phone } });
+    if (session && session.role === 'ONBOARDING') {
+      return handleOnboardingFlow(phone, text, prisma, mediaId, mediaType);
+    }
+
+    // Check if new owner wants to register/onboard
+    if (lowerText === '/onboard' || lowerText === 'onboard' || lowerText === '/register' || lowerText === 'register') {
+      await prisma.botSession.deleteMany({ where: { phone } });
+      return handleOnboardingFlow(phone, 'Hi', prisma, mediaId, mediaType);
+    }
+
+    // Players: check if the captain is responding to a join request (since captain is also on the main number)
+    if (await handleCaptainApproval(phone, text, null, prisma)) {
+      return;
+    }
+
+    // Otherwise handle player flow
+    return handleCentralizedPlayerFlow(phone, text, prisma, mediaId, mediaType);
   }
 
-  // 2. ROUTING: Check if the receiving number matches a connected Turf Owner business phone
+  // Fallback / legacy support for decentralized numbers
   const turfOwner = await prisma.botOwner.findUnique({
     where: { businessPhone: to }
   });
 
   if (!turfOwner) {
-    // Unknown number, ignore or reply with standard message
     return whatsappService.sendText(phone, "Hello! This WhatsApp number is not configured on STRIKIT. Please onboard at the STRIKIT number.");
   }
 
@@ -54,7 +127,6 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
     }
   }
 
-  // 1. If the turf is not verified at all, block everyone (both owner and players)
   if (!turfOwner.verified) {
     if (phone === turfOwner.mobile) {
       return whatsappService.sendText(phone, "⏳ Your turf verification is pending developer approval. We will notify you once approved!");
@@ -63,7 +135,6 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
     }
   }
 
-  // 2. If subscription is expired, only block the OWNER from dashboard/settings commands
   if (!turfOwner.subscriptionActive) {
     if (phone === turfOwner.mobile) {
       const subLink = await paymentService.createSubscriptionLink(turfOwner.id);
@@ -77,20 +148,16 @@ export async function handleWhatsAppWebhook(from, to, messageText, prisma, media
         `_Powered by STRIKIT_`
       );
     }
-    // Players are NOT blocked when subscription is inactive — they can proceed to book slots!
   }
 
-  // 3. Turf Owner Commands: If the message sender is the owner of this turf
   if (phone === turfOwner.mobile) {
     return handleOwnerCommands(phone, text, turfOwner, prisma, mediaId, mediaType);
   }
 
-  // 4. Team Captain Action (ACCEPT/REJECT): Check if the Captain is replying to a Join Request
   if (await handleCaptainApproval(phone, text, turfOwner, prisma)) {
     return;
   }
 
-  // 5. Player Booking Flow: Handle normal player messages sent to the turf's business bot
   return handlePlayerFlow(phone, text, turfOwner, prisma);
 }
 
@@ -139,6 +206,11 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
         return;
       }
       context.location = text;
+      const coords = await extractCoordinatesFromGoogleMapsLink(text);
+      if (coords) {
+        context.latitude = coords.latitude;
+        context.longitude = coords.longitude;
+      }
       await whatsappService.sendText(phone, `Location set. Please upload or provide a link for your Turf Photos (e.g. Google Drive link or upload photos directly):`);
       await updateSession(phone, 'AWAITING_PHOTOS', context, prisma);
       break;
@@ -164,8 +236,8 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
         return;
       }
       context.gst = cleanGst;
-      await whatsappService.sendText(phone, `GST registered. Please enter your MSME Udyam Registration Number (Format: UDYAM-XX-00-0000000) OR upload your MSME Certificate file/image directly:`);
-      await updateSession(phone, 'AWAITING_MSME', context, prisma);
+      await whatsappService.sendText(phone, `GST registered. Please enter your Turf Opening Time (Format: HH:MM AM/PM, e.g. 06:00 AM):`);
+      await updateSession(phone, 'AWAITING_OPENING_TIME', context, prisma);
       break;
 
     case 'AWAITING_MSME':
@@ -236,7 +308,9 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
             upiId: context.upiId,
             openingTime: context.openingTime,
             closingTime: context.closingTime,
-            pricePerHour: context.pricePerHour
+            pricePerHour: context.pricePerHour,
+            latitude: context.latitude ? parseFloat(context.latitude) : null,
+            longitude: context.longitude ? parseFloat(context.longitude) : null
           }
         });
       } else {
@@ -252,7 +326,9 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
             upiId: context.upiId,
             openingTime: context.openingTime,
             closingTime: context.closingTime,
-            pricePerHour: context.pricePerHour
+            pricePerHour: context.pricePerHour,
+            latitude: context.latitude ? parseFloat(context.latitude) : null,
+            longitude: context.longitude ? parseFloat(context.longitude) : null
           }
         });
       }
@@ -261,7 +337,7 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
         phone,
         `🎉 *Registration Summary for ${context.turfName}!* 🎉\n\n` +
         `Hello ${context.ownerName}, your registration details have been saved successfully!\n\n` +
-        `⏳ *Verification:* Your details have been sent to the developers for review. Once verified, you will be granted a **2-day free trial** to test your bot!\n\n` +
+        `⏳ *Verification:* Your details have been sent to the developers for review. Once approved, you will receive a link to pay the ₹699 subscription fee to activate your bot and generate your QR Code.\n\n` +
         `We will notify you immediately via WhatsApp once verified. Thank you for partnering with STRIKIT!\n\n` +
         `_Powered by STRIKIT_`
       );
@@ -284,7 +360,7 @@ async function handleOnboardingFlow(phone, text, prisma, mediaId = '', mediaType
 
     case 'AWAITING_VERIFICATION':
     case 'ONBOARDING_AWAITING_VERIFICATION':
-      await whatsappService.sendText(phone, `⏳ *Awaiting Verification:* Your details are being reviewed by the developers. Once approved, your 2-Day Free Trial will start immediately! Please wait.`);
+      await whatsappService.sendText(phone, `⏳ *Awaiting Verification:* Your details are being reviewed by the developers. Once approved, you will receive a payment link to pay the ₹699 subscription fee and activate your bot. Please wait.`);
       break;
 
     case 'AWAITING_BUSINESS_CONNECT':
@@ -363,7 +439,7 @@ async function handleOwnerCommands(phone, text, owner, prisma, mediaId = '', med
     return;
   }
   if (text.startsWith('/report')) {
-    await executeReport(phone, owner, prisma);
+    await startReportFlow(phone, prisma);
     return;
   }
   if (text.startsWith('/block')) {
@@ -509,8 +585,7 @@ async function handleOwnerCommands(phone, text, owner, prisma, mediaId = '', med
         await executeRevenue(phone, owner, prisma);
         await prisma.botSession.update({ where: { phone }, data: { state: 'OWNER_DASHBOARD' } });
       } else if (text === 'dashboard_report') {
-        await executeReport(phone, owner, prisma);
-        await prisma.botSession.update({ where: { phone }, data: { state: 'OWNER_DASHBOARD' } });
+        await startReportFlow(phone, prisma);
       } else if (text === 'dashboard_edit_settings') {
         await sendSettingsEditMenu(phone, prisma);
         await prisma.botSession.update({ where: { phone }, data: { state: 'AWAITING_EDIT_FIELD_CHOICE' } });
@@ -520,6 +595,23 @@ async function handleOwnerCommands(phone, text, owner, prisma, mediaId = '', med
       } else {
         await sendOwnerDashboard(phone, prisma);
       }
+      break;
+
+    case 'AWAITING_REPORT_RANGE_CHOICE':
+      let range = '';
+      if (text === '1' || text === 'report_current_month' || text.toLowerCase().includes('current')) {
+        range = 'CURRENT_MONTH';
+      } else if (text === '2' || text === 'report_prev_month' || text.toLowerCase().includes('prev') || text.toLowerCase().includes('previous')) {
+        range = 'PREVIOUS_MONTH';
+      } else if (text === '3' || text === 'report_all_time' || text.toLowerCase().includes('all')) {
+        range = 'ALL_TIME';
+      } else {
+        await whatsappService.sendText(phone, "❌ Invalid selection. Please reply: 1 (Current Month), 2 (Previous Month), or 3 (All-Time):");
+        return;
+      }
+
+      await executeReportWithRange(phone, owner, range, prisma);
+      await prisma.botSession.update({ where: { phone }, data: { state: 'OWNER_DASHBOARD' } });
       break;
 
     case 'AWAITING_EDIT_FIELD_CHOICE':
@@ -826,7 +918,7 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
 
     const pendingRequest = await prisma.botJoinRequest.findUnique({
       where: { id: context.joinRequestId },
-      include: { booking: { include: { slot: true } } }
+      include: { booking: { include: { slot: { include: { owner: true } } } } }
     });
 
     if (!pendingRequest || pendingRequest.status !== 'PENDING') {
@@ -848,13 +940,15 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
       `_Powered by STRIKIT_`
     );
 
+    const turfOwner = owner || pendingRequest.booking.slot.owner;
+
     // Notify Single Player
     await whatsappService.sendText(
       pendingRequest.playerPhone,
-      `🎉 *Join Request Accepted for ${owner.turfName}!* 🎉\n\n` +
+      `🎉 *Join Request Accepted for ${turfOwner.turfName}!* 🎉\n\n` +
       `Hello ${pendingRequest.playerName}, captain *${pendingRequest.booking.captainName}* has accepted your request to play with them!\n\n` +
       `*Details:*\n` +
-      `• Turf: *${owner.turfName}*\n` +
+      `• Turf: *${turfOwner.turfName}*\n` +
       `• Date: ${pendingRequest.booking.slot.date}\n` +
       `• Time Slot: ${pendingRequest.booking.slot.timeSlot}\n` +
       `• Captain Contact: ${pendingRequest.booking.captainPhone}\n` +
@@ -865,7 +959,7 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
 
     // Trigger Telegram log update
     await telegramService.sendAlert(
-      `Player Joined: ${pendingRequest.playerName} joined ${pendingRequest.booking.captainName}'s team at ${owner.turfName}.`
+      `Player Joined: ${pendingRequest.playerName} joined ${pendingRequest.booking.captainName}'s team at ${turfOwner.turfName}.`
     );
 
     await prisma.botSession.delete({ where: { phone } });
@@ -875,7 +969,7 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
   // 4. Backward Compatibility for Legacy Text Commands "ACCEPT [Amount]" or "REJECT"
   if (upperText.startsWith('ACCEPT') || upperText === 'REJECT') {
     const bookings = await prisma.botBooking.findMany({
-      where: { captainPhone: phone, slot: { ownerId: owner.id } },
+      where: { captainPhone: phone, slot: owner ? { ownerId: owner.id } : undefined },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -884,11 +978,13 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
     const bookingIds = bookings.map(b => b.id);
     const pendingRequest = await prisma.botJoinRequest.findFirst({
       where: { bookingId: { in: bookingIds }, status: 'PENDING' },
-      include: { booking: { include: { slot: true } } },
+      include: { booking: { include: { slot: { include: { owner: true } } } } },
       orderBy: { createdAt: 'desc' }
     });
 
     if (!pendingRequest) return false;
+
+    const turfOwner = owner || pendingRequest.booking.slot.owner;
 
     if (upperText.startsWith('ACCEPT')) {
       const parts = text.split(' ');
@@ -913,10 +1009,10 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
 
       await whatsappService.sendText(
         pendingRequest.playerPhone,
-        `🎉 *Join Request Accepted for ${owner.turfName}!* 🎉\n\n` +
+        `🎉 *Join Request Accepted for ${turfOwner.turfName}!* 🎉\n\n` +
         `Hello ${pendingRequest.playerName}, captain *${pendingRequest.booking.captainName}* has accepted your request to play with them!\n\n` +
         `*Details:*\n` +
-        `• Turf: *${owner.turfName}*\n` +
+        `• Turf: *${turfOwner.turfName}*\n` +
         `• Date: ${pendingRequest.booking.slot.date}\n` +
         `• Time Slot: ${pendingRequest.booking.slot.timeSlot}\n` +
         `• Captain Contact: ${pendingRequest.booking.captainPhone}\n` +
@@ -926,7 +1022,7 @@ async function handleCaptainApproval(phone, text, owner, prisma) {
       );
 
       await telegramService.sendAlert(
-        `Player Joined: ${pendingRequest.playerName} joined ${pendingRequest.booking.captainName}'s team at ${owner.turfName}.`
+        `Player Joined: ${pendingRequest.playerName} joined ${pendingRequest.booking.captainName}'s team at ${turfOwner.turfName}.`
       );
     } else {
       await prisma.botJoinRequest.update({
@@ -1541,15 +1637,59 @@ async function executeRevenue(phone, owner, prisma) {
 }
 
 async function executeReport(phone, owner, prisma) {
+  await executeReportWithRange(phone, owner, 'ALL_TIME', prisma);
+}
+
+async function startReportFlow(phone, prisma) {
+  await whatsappService.sendButtons(
+    phone,
+    `📊 *Select PDF Report Range* 📊\n\n` +
+    `Please select the period for your earnings report:\n` +
+    `1️⃣ *Current Month*\n` +
+    `2️⃣ *Previous Month*\n` +
+    `3️⃣ *All-Time*`,
+    [
+      { id: 'report_current_month', title: '1. Current Month' },
+      { id: 'report_prev_month', title: '2. Previous Month' },
+      { id: 'report_all_time', title: '3. All-Time' }
+    ]
+  );
+  await prisma.botSession.update({
+    where: { phone },
+    data: { state: 'AWAITING_REPORT_RANGE_CHOICE' }
+  });
+}
+
+async function executeReportWithRange(phone, owner, range, prisma) {
   const bookings = await prisma.botBooking.findMany({
     where: { slot: { ownerId: owner.id } },
     include: { slot: true }
   });
 
+  let filteredBookings = bookings;
+  const now = new Date();
+
+  if (range === 'CURRENT_MONTH') {
+    const currentYearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    filteredBookings = bookings.filter(b => b.slot.date.startsWith(currentYearMonth));
+  } else if (range === 'PREVIOUS_MONTH') {
+    let prevYear = now.getFullYear();
+    let prevMonthVal = now.getMonth();
+    if (prevMonthVal === 0) {
+      prevMonthVal = 12;
+      prevYear -= 1;
+    }
+    const prevYearMonth = `${prevYear}-${String(prevMonthVal).padStart(2, '0')}`;
+    filteredBookings = bookings.filter(b => b.slot.date.startsWith(prevYearMonth));
+  }
+
   await whatsappService.sendText(phone, "Generating report... Please wait.");
   try {
     const reportsDir = path.resolve('reports');
-    const pdfPath = generateRevenueReport(owner, bookings, reportsDir);
+    if (!fs.existsSync(reportsDir)) {
+      fs.mkdirSync(reportsDir, { recursive: true });
+    }
+    const pdfPath = generateRevenueReport(owner, filteredBookings, reportsDir);
     const url = `http://localhost:5000/reports/${path.basename(pdfPath)}`;
     await whatsappService.sendDocument(phone, url, `report_${owner.id}.pdf`, `Here is your revenue report PDF, ${owner.name}!`);
   } catch (err) {
@@ -1667,6 +1807,50 @@ export function isGoogleMapsLink(text) {
   return urlPattern.test(text);
 }
 
+export async function extractCoordinatesFromGoogleMapsLink(url) {
+  // First attempt: try to parse coordinates directly from the given URL
+  const atRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+  let match = url.match(atRegex);
+  if (match) {
+    return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+  }
+
+  const qRegex = /[?&](q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/;
+  match = url.match(qRegex);
+  if (match) {
+    return { latitude: parseFloat(match[2]), longitude: parseFloat(match[3]) };
+  }
+
+  // Second attempt: if it's a short/redirect URL, resolve it first
+  if (url.includes('goo.gl') || url.includes('maps.app.goo.gl') || url.includes('maps.google.com') || url.includes('google.com/maps')) {
+    try {
+      const response = await axios.get(url, {
+        maxRedirects: 5,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36'
+        },
+        timeout: 5000,
+        validateStatus: (status) => status >= 200 && status < 400
+      });
+      const targetUrl = response.request?.res?.responseUrl || response.headers?.location || url;
+      
+      let match = targetUrl.match(atRegex);
+      if (match) {
+        return { latitude: parseFloat(match[1]), longitude: parseFloat(match[2]) };
+      }
+
+      match = targetUrl.match(qRegex);
+      if (match) {
+        return { latitude: parseFloat(match[2]), longitude: parseFloat(match[3]) };
+      }
+    } catch (error) {
+      console.error('Error resolving Google Maps URL:', error.message);
+    }
+  }
+
+  return null;
+}
+
 async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
   const parts = text.split(/\s+/);
   const command = parts[0].toLowerCase();
@@ -1689,30 +1873,34 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
   }
   
   if (command === '/approve') {
-    const trialExpiry = new Date();
-    trialExpiry.setDate(trialExpiry.getDate() + 2); // 2 days trial
-
     await prisma.botOwner.update({
       where: { id: ownerId },
-      data: { verified: true, subscriptionActive: true, subscriptionExpiry: trialExpiry }
+      data: { verified: true, subscriptionActive: false, subscriptionExpiry: null }
     });
+
+    const subLink = await paymentService.createSubscriptionLink(ownerId);
+
+    // Fetch existing context or build new one
+    const existingSession = await prisma.botSession.findUnique({ where: { phone: owner.mobile } });
+    const existingContext = JSON.parse(existingSession?.context || '{}');
+    const newContext = { ...existingContext, ownerId: ownerId };
 
     await prisma.botSession.upsert({
       where: { phone: owner.mobile },
-      update: { state: 'AWAITING_BUSINESS_CONNECT' },
-      create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_BUSINESS_CONNECT' }
+      update: { role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) },
+      create: { phone: owner.mobile, role: 'ONBOARDING', state: 'AWAITING_SUBSCRIPTION', context: JSON.stringify(newContext) }
     });
 
     // Send confirmation to Developer who approved
-    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been approved successfully with a 2-day free trial!`);
+    await whatsappService.sendText(phone, `✅ Owner *${owner.name}* (Turf: *${owner.turfName}*) has been approved successfully! Awaiting subscription payment.`);
 
     // Notify Owner on their onboarding number
     await whatsappService.sendText(
       owner.mobile,
       `🎉 *Congratulations ${owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n` +
-      `Your turf *${owner.turfName}* has been verified by the developer and your 2-Day Free Trial is now active!\n\n` +
-      `📲 *Final Step:* Please connect your WhatsApp Business Number to this bot now by typing:\n` +
-      `👉 \`/connect [WhatsAppNumber]\` (e.g., \`/connect 919876543210\`)\n\n` +
+      `Your turf *${owner.turfName}* has been verified by the developer.\n\n` +
+      `💳 *Subscription Link:* Please pay ₹699.00 to activate your bot and generate your booking QR Code:\n` +
+      `${subLink}\n\n` +
       `_Powered by STRIKIT_`
     );
   } else if (command === '/reject') {
@@ -1762,5 +1950,214 @@ async function handleDeveloperWhatsAppCommand(phone, text, prisma) {
       `_Powered by STRIKIT_`
     );
   }
+}
+
+export async function handleCentralizedPlayerFlow(phone, text, prisma, mediaId = '', mediaType = '') {
+  const lowerText = text.toLowerCase().trim();
+  let session = await prisma.botSession.findUnique({ where: { phone } });
+
+  // Handle Book [TurfName] QR Code scans
+  if (lowerText.startsWith('book ')) {
+    const turfNameQuery = text.substring(5).trim();
+    // Soft match turf name (case insensitive)
+    const owners = await prisma.botOwner.findMany({
+      where: { verified: true, subscriptionActive: true }
+    });
+    const matchedOwner = owners.find(o => o.turfName.toLowerCase() === turfNameQuery.toLowerCase());
+    if (matchedOwner) {
+      session = await prisma.botSession.upsert({
+        where: { phone },
+        update: { role: 'CUSTOMER', state: 'PLAYER_START', context: JSON.stringify({ turfId: matchedOwner.id }) },
+        create: { phone, role: 'CUSTOMER', state: 'PLAYER_START', context: JSON.stringify({ turfId: matchedOwner.id }) }
+      });
+      return handlePlayerFlow(phone, 'Hi', matchedOwner, prisma);
+    } else {
+      await whatsappService.sendText(phone, `❌ Turf "${turfNameQuery}" not found or inactive. Please scan a valid QR code or send 'hi' to search nearby.`);
+      return;
+    }
+  }
+
+  // Initialize player flow if no session exists or they send "hi" / "hello"
+  if (!session || session.role !== 'CUSTOMER' || lowerText === 'hi' || lowerText === 'hello' || lowerText === 'menu') {
+    // Check previous booking history
+    const lastBooking = await prisma.botBooking.findFirst({
+      where: { captainPhone: phone },
+      orderBy: { createdAt: 'desc' },
+      include: { slot: { include: { owner: true } } }
+    });
+
+    if (lastBooking && lastBooking.slot?.owner) {
+      const prevTurf = lastBooking.slot.owner;
+      session = await prisma.botSession.upsert({
+        where: { phone },
+        update: {
+          role: 'CUSTOMER',
+          state: 'AWAITING_PREVIOUS_TURF_CONFIRMATION',
+          context: JSON.stringify({ previousTurfId: prevTurf.id })
+        },
+        create: {
+          phone,
+          role: 'CUSTOMER',
+          state: 'AWAITING_PREVIOUS_TURF_CONFIRMATION',
+          context: JSON.stringify({ previousTurfId: prevTurf.id })
+        }
+      });
+
+      await whatsappService.sendButtons(
+        phone,
+        `👋 *Welcome Back!* ⚽\n\n` +
+        `Would you like to book a slot at *${prevTurf.turfName}* again?`,
+        [
+          { id: 'confirm_prev_yes', title: 'Yes' },
+          { id: 'confirm_prev_no', title: 'No' }
+        ]
+      );
+      return;
+    } else {
+      // New user or no bookings
+      session = await prisma.botSession.upsert({
+        where: { phone },
+        update: { role: 'CUSTOMER', state: 'AWAITING_LOCATION_OR_SEARCH', context: '{}' },
+        create: { phone, role: 'CUSTOMER', state: 'AWAITING_LOCATION_OR_SEARCH', context: '{}' }
+      });
+
+      await whatsappService.sendText(
+        phone,
+        `👋 *Welcome to STRIKIT!* ⚽\n\n` +
+        `To help you find the best turfs nearby, please share your current location using the WhatsApp Location button (📎 -> Location).`
+      );
+      return;
+    }
+  }
+
+  const context = JSON.parse(session.context || '{}');
+
+  // Handle centralized search states
+  if (session.state === 'AWAITING_PREVIOUS_TURF_CONFIRMATION') {
+    if (text === '1' || lowerText === 'yes' || text === 'confirm_prev_yes') {
+      const owner = await prisma.botOwner.findUnique({ where: { id: context.previousTurfId } });
+      if (owner && owner.verified && owner.subscriptionActive) {
+        session = await prisma.botSession.update({
+          where: { phone },
+          data: { state: 'PLAYER_START', context: JSON.stringify({ turfId: owner.id }) }
+        });
+        return handlePlayerFlow(phone, 'Hi', owner, prisma);
+      } else {
+        await whatsappService.sendText(phone, "⚠️ That turf is currently unavailable. Let's find other turfs nearby.");
+        session = await prisma.botSession.update({
+          where: { phone },
+          data: { state: 'AWAITING_LOCATION_OR_SEARCH', context: '{}' }
+        });
+        await whatsappService.sendText(
+          phone,
+          `Please share your current location using the WhatsApp Location button (📎 -> Location):`
+        );
+        return;
+      }
+    } else if (text === '2' || lowerText === 'no' || text === 'confirm_prev_no') {
+      session = await prisma.botSession.update({
+        where: { phone },
+        data: { state: 'AWAITING_LOCATION_OR_SEARCH', context: '{}' }
+      });
+      await whatsappService.sendText(
+        phone,
+        `Please share your current location using the WhatsApp Location button (📎 -> Location) to search for turfs within 10km:`
+      );
+      return;
+    } else {
+      await whatsappService.sendText(phone, "Please reply with 1 for Yes, or 2 for No.");
+      return;
+    }
+  }
+
+  if (session.state === 'AWAITING_LOCATION_OR_SEARCH') {
+    if (text.startsWith('location:')) {
+      const parts = text.substring(9).split(',');
+      const playerLat = parseFloat(parts[0]);
+      const playerLng = parseFloat(parts[1]);
+
+      if (isNaN(playerLat) || isNaN(playerLng)) {
+        await whatsappService.sendText(phone, "❌ Error parsing location. Please try sharing your location again:");
+        return;
+      }
+
+      const verifiedTurfs = await prisma.botOwner.findMany({
+        where: { verified: true, subscriptionActive: true }
+      });
+
+      const nearbyTurfs = verifiedTurfs.map(turf => {
+        const distance = (turf.latitude && turf.longitude) ? calculateDistance(playerLat, playerLng, turf.latitude, turf.longitude) : 999999;
+        return { ...turf, distance };
+      }).filter(t => t.distance <= 10).sort((a, b) => a.distance - b.distance);
+
+      if (nearbyTurfs.length === 0) {
+        await whatsappService.sendText(phone, "❌ No verified turfs found within 10km of your location. Please share a different location:");
+        return;
+      }
+
+      context.nearbyTurfs = nearbyTurfs.map(t => t.id);
+      const listMessage = `🏟️ *Nearby Turfs Found (within 10km):*\n\n` +
+        nearbyTurfs.map((t, idx) => `*${idx + 1}* - *${t.turfName}* (${t.distance.toFixed(1)} km)\n📍 ${t.location}`).join('\n\n') +
+        `\n\nReply with the number (e.g. 1) to select and book your turf!`;
+      
+      await whatsappService.sendText(phone, listMessage);
+      await updateSession(phone, 'AWAITING_SEARCH_RESULT_SELECTION', context, prisma);
+      return;
+    } else {
+      // Block text input, only allow native location
+      await whatsappService.sendText(phone, "⚠️ Please share your precise coordinates using the native WhatsApp Location sharing button (the paperclip icon 📎 -> Location) so we can find turfs within a 10km radius of your location.");
+      return;
+    }
+  }
+
+  if (session.state === 'AWAITING_SEARCH_RESULT_SELECTION') {
+    const selectionIdx = parseInt(text.trim(), 10) - 1;
+    if (isNaN(selectionIdx) || !context.nearbyTurfs || selectionIdx < 0 || selectionIdx >= context.nearbyTurfs.length) {
+      await whatsappService.sendText(phone, `❌ Invalid selection. Please reply with a number between 1 and ${context.nearbyTurfs?.length || 1}:`);
+      return;
+    }
+    const selectedTurfId = context.nearbyTurfs[selectionIdx];
+    const turfOwner = await prisma.botOwner.findUnique({ where: { id: selectedTurfId } });
+    if (!turfOwner) {
+      await whatsappService.sendText(phone, "❌ Turf not found. Please try searching again by sending your location:");
+      await updateSession(phone, 'AWAITING_LOCATION_OR_SEARCH', {}, prisma);
+      return;
+    }
+    context.turfId = turfOwner.id;
+    delete context.nearbyTurfs;
+    
+    session = await prisma.botSession.update({
+      where: { phone },
+      data: { role: 'CUSTOMER', state: 'PLAYER_START', context: JSON.stringify(context) }
+    });
+    return handlePlayerFlow(phone, 'Hi', turfOwner, prisma);
+  }
+
+  // Otherwise, we are in an active turf's booking states (e.g. AWAITING_DATE_SELECTION, etc.)
+  const owner = await prisma.botOwner.findUnique({ where: { id: context.turfId } });
+  if (!owner) {
+    await whatsappService.sendText(phone, "❌ Turf configuration error. Please send 'hi' to start over.");
+    await prisma.botSession.delete({ where: { phone } });
+    return;
+  }
+  return handlePlayerFlow(phone, text, owner, prisma);
+}
+
+function calculateDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    ;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+}
+
+function deg2rad(deg) {
+  return deg * (Math.PI / 180);
 }
 

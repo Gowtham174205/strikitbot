@@ -7,6 +7,7 @@ import { handleWhatsAppWebhook } from './routes/whatsappBot.js';
 import * as whatsappService from './services/whatsappService.js';
 import { handleTelegramWebhook, triggerAndSendMonthlyReport } from './routes/telegramBot.js';
 import razorpayRouter from './routes/razorpay.js';
+import { generateRevenueReport } from './services/pdfGenerator.js';
 import adminRouter from './routes/admin.js';
 import * as paymentService from './services/paymentService.js';
 import {
@@ -100,6 +101,10 @@ app.post('/webhook/whatsapp', verifyWhatsAppSignature, async (req, res) => {
         mediaId = message.document.id;
         mediaType = 'document';
         text = message.document.caption || '';
+      } else if (message.type === 'location') {
+        const lat = message.location.latitude;
+        const lng = message.location.longitude;
+        text = `location:${lat},${lng}`;
       }
 
       console.log(`[WhatsApp Webhook Received] From: ${from} -> To: ${to} | Text: "${text}" | Media: ${mediaType} (${mediaId})`);
@@ -156,6 +161,38 @@ function startMonthlyReportScheduler(prisma) {
       if (lastSent !== targetMonthStr) {
         console.log(`[Scheduler] Generating and sending monthly platform report for ${targetMonthStr}...`);
         await triggerAndSendMonthlyReport(prisma, { previousMonth: true });
+
+        // Also generate and send monthly WhatsApp PDF reports to each active owner
+        try {
+          const activeOwners = await prisma.botOwner.findMany({
+            where: { verified: true, subscriptionActive: true }
+          });
+          for (const owner of activeOwners) {
+            const bookings = await prisma.botBooking.findMany({
+              where: {
+                slot: {
+                  ownerId: owner.id,
+                  date: { startsWith: targetMonthStr }
+                }
+              },
+              include: { slot: true }
+            });
+
+            const pdfPath = generateRevenueReport(owner, bookings, path.resolve('reports'));
+            const url = `http://localhost:5000/reports/${path.basename(pdfPath)}`;
+            await whatsappService.sendDocument(
+              owner.mobile,
+              url,
+              `monthly_report_${targetMonthStr}.pdf`,
+              `📅 *Monthly Revenue Report for ${targetMonthStr}* 📅\n\n` +
+              `Hello ${owner.name}, here is your automated monthly revenue report for *${owner.turfName}*.\n\n` +
+              `_Powered by STRIKIT_`
+            );
+          }
+        } catch (ownerReportErr) {
+          console.error('[Scheduler] Error sending monthly WhatsApp reports to owners:', ownerReportErr);
+        }
+
         fs.writeFileSync(markerPath, targetMonthStr, 'utf8');
         console.log(`[Scheduler] Monthly report for ${targetMonthStr} sent and marked.`);
       }
@@ -175,7 +212,40 @@ function startSubscriptionExpiryScheduler(prisma) {
   const checkExpiry = async () => {
     try {
       const now = new Date();
-      // Find all owners who are currently active but whose trial/subscription has expired
+
+      // 1. Send reminder 3 days before subscription expiry (between 71 and 72 hours from now)
+      const seventyTwoHoursFromNow = new Date(now.getTime() + 72 * 60 * 60 * 1000);
+      const seventyOneHoursFromNow = new Date(now.getTime() + 71 * 60 * 60 * 1000);
+
+      const ownersToRemind = await prisma.botOwner.findMany({
+        where: {
+          subscriptionActive: true,
+          subscriptionExpiry: {
+            gte: seventyOneHoursFromNow,
+            lte: seventyTwoHoursFromNow
+          }
+        }
+      });
+
+      for (const owner of ownersToRemind) {
+        try {
+          const subLink = await paymentService.createSubscriptionLink(owner.id);
+          await whatsappService.sendText(
+            owner.mobile,
+            `⏰ *STRIKIT Subscription Renewal Reminder* ⏰\n\n` +
+            `Dear ${owner.name}, your subscription for *${owner.turfName}* will expire in 3 days.\n\n` +
+            `To avoid any disruption to your reports and settings commands, please pay ₹699.00 to renew your monthly subscription:\n\n` +
+            `🔗 *Payment Link:* Click below to renew via Razorpay:\n` +
+            `${subLink}\n\n` +
+            `_Powered by STRIKIT_`
+          );
+          console.log(`[Subscription Scheduler] Sent 3-day renewal reminder to ${owner.mobile}`);
+        } catch (remindErr) {
+          console.error(`[Subscription Scheduler] Failed to send renewal reminder to ${owner.mobile}:`, remindErr.message);
+        }
+      }
+
+      // 2. Find all owners who are currently active but whose trial/subscription has expired
       const expiredOwners = await prisma.botOwner.findMany({
         where: {
           subscriptionActive: true,
