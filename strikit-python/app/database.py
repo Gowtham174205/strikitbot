@@ -27,6 +27,7 @@ if db_url.startswith("sqlite"):
 else:
     extra_args["pool_size"] = 10
     extra_args["max_overflow"] = 20
+    connect_args["prepared_statement_cache_size"] = 0
 
 engine = create_async_engine(
     db_url,
