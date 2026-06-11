@@ -74,16 +74,19 @@ async def run_async_migrations() -> None:
     and associate a connection with the context.
 
     """
-    connect_args = {}
-    url = config.get_main_option("sqlalchemy.url")
-    if url and "asyncpg" in url:
-        connect_args["prepared_statement_cache_size"] = 0
+    from sqlalchemy.ext.asyncio import create_async_engine
+    
+    db_url = settings.DATABASE_URL
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgres://"):
+        db_url = db_url.replace("postgres://", "postgresql+asyncpg://", 1)
+    db_url = db_url.replace("?pgbouncer=true", "").replace("&pgbouncer=true", "")
 
-    connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    connectable = create_async_engine(
+        db_url,
         poolclass=pool.NullPool,
-        connect_args=connect_args,
+        connect_args={"prepared_statement_cache_size": 0},
     )
 
     async with connectable.connect() as connection:
