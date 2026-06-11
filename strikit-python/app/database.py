@@ -28,6 +28,8 @@ else:
     extra_args["pool_size"] = 10
     extra_args["max_overflow"] = 20
     connect_args["prepared_statement_cache_size"] = 0
+    from uuid import uuid4
+    connect_args["prepared_statement_name_func"] = lambda: f"__asyncpg_{uuid4().hex}__"
 
 engine = create_async_engine(
     db_url,

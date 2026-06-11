@@ -75,6 +75,7 @@ async def run_async_migrations() -> None:
 
     """
     from sqlalchemy.ext.asyncio import create_async_engine
+    from uuid import uuid4
     
     db_url = settings.DATABASE_URL
     if db_url.startswith("postgresql://"):
@@ -86,7 +87,10 @@ async def run_async_migrations() -> None:
     connectable = create_async_engine(
         db_url,
         poolclass=pool.NullPool,
-        connect_args={"prepared_statement_cache_size": 0},
+        connect_args={
+            "prepared_statement_cache_size": 0,
+            "prepared_statement_name_func": lambda: f"__asyncpg_{uuid4().hex}__",
+        },
     )
 
     async with connectable.connect() as connection:
