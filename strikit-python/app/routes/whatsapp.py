@@ -105,6 +105,18 @@ async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db))
 # MAIN ROUTING
 # ══════════════════════════════════════════════════════════════════
 
+async def show_role_selection(phone: str):
+    """Show main welcome role selection buttons to the user."""
+    await whatsapp_service.send_buttons(
+        phone,
+        "👋 *Welcome to STRIKIT!*\n\nPlease select your role to continue:",
+        [
+            {"id": "role_player", "title": "🏟️ I'm a Player"},
+            {"id": "role_owner", "title": "💼 I'm an Owner"},
+        ],
+    )
+
+
 async def handle_whatsapp_message(
     phone: str, to: str, text: str, db: AsyncSession,
     media_id: str = "", media_type: str = "",
@@ -121,54 +133,86 @@ async def handle_whatsapp_message(
 
     # Centralized routing (single bot number)
     if to == settings.ONBOARDING_NUMBER or to == settings.WHATSAPP_PHONE_NUMBER_ID:
-        # Check if sender is a registered owner
-        owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+        # If they send 'hi' / 'hello' / 'menu' / '/menu', show role selection
+        if lower in ("hi", "hello", "menu", "/menu"):
+            await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
+            await show_role_selection(phone)
+            return
 
-        if owner:
-            session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
-            if session and session.role == "ONBOARDING":
+        # Handle back to roles action
+        if lower == "back_to_roles":
+            await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
+            await show_role_selection(phone)
+            return
+
+        # Handle role selection button click
+        if lower == "role_player":
+            await update_session(phone, "PLAYER_START", {}, db, role="CUSTOMER")
+            return await handle_player_flow(phone, "hi", db)
+
+        if lower == "role_owner":
+            owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+            if owner:
+                # Subscription and verification check
+                if owner.subscriptionActive and owner.subscriptionExpiry:
+                    if datetime.utcnow() > owner.subscriptionExpiry:
+                        owner.subscriptionActive = False
+                        await db.commit()
+
+                if not owner.verified:
+                    return await whatsapp_service.send_text(phone, "⏳ Your turf verification is pending developer approval.")
+
+                if not owner.subscriptionActive:
+                    sub_link = payment_service.create_subscription_link(owner.id)
+                    return await whatsapp_service.send_text(
+                        phone,
+                        f"⚠️ *STRIKIT Subscription Expired* ⚠️\n\n"
+                        f"Dear {owner.name}, your subscription for *{owner.turfName}* has expired.\n\n"
+                        f"🔗 *Renew:* {sub_link}\n\n_Powered by STRIKIT_",
+                    )
+
+                # Route to owner dashboard
+                await update_session(phone, "OWNER_START", {}, db, role="OWNER")
+                return await handle_owner_commands(phone, "hi", owner, db, media_id, media_type)
+            else:
+                # Clean existing onboarding sessions
+                sessions = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().all()
+                for s in sessions:
+                    await db.delete(s)
+                await db.commit()
+                # Start onboarding flow
+                await update_session(phone, "ONBOARDING_START", {}, db, role="ONBOARDING")
+                return await handle_onboarding_flow(phone, "Hi", db, media_id, media_type)
+
+        # Get existing session
+        session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
+
+        # Handle back/cancel command inside onboarding flow
+        if session and session.role == "ONBOARDING" and lower in ("cancel", "/cancel", "back"):
+            await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
+            await show_role_selection(phone)
+            return
+
+        if session:
+            if session.role == "ONBOARDING":
                 return await handle_onboarding_flow(phone, text, db, media_id, media_type)
 
-            # Check subscription expiry
-            if owner.subscriptionActive and owner.subscriptionExpiry:
-                if datetime.utcnow() > owner.subscriptionExpiry:
-                    owner.subscriptionActive = False
-                    await db.commit()
+            if session.role == "OWNER":
+                owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+                if owner:
+                    return await handle_owner_commands(phone, text, owner, db, media_id, media_type)
 
-            if not owner.verified:
-                return await whatsapp_service.send_text(phone, "⏳ Your turf verification is pending developer approval.")
-
-            if not owner.subscriptionActive:
-                sub_link = payment_service.create_subscription_link(owner.id)
-                return await whatsapp_service.send_text(
-                    phone,
-                    f"⚠️ *STRIKIT Subscription Expired* ⚠️\n\n"
-                    f"Dear {owner.name}, your subscription for *{owner.turfName}* has expired.\n\n"
-                    f"🔗 *Renew:* {sub_link}\n\n_Powered by STRIKIT_",
-                )
-
-            return await handle_owner_commands(phone, text, owner, db, media_id, media_type)
-
-        # Not owner — check onboarding session
-        session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
-        if session and session.role == "ONBOARDING":
-            return await handle_onboarding_flow(phone, text, db, media_id, media_type)
-
-        # New owner registration
-        if lower in ("/onboard", "onboard", "/register", "register"):
-            await db.execute(select(BotSession).where(BotSession.phone == phone))
-            sessions = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().all()
-            for s in sessions:
-                await db.delete(s)
-            await db.commit()
-            return await handle_onboarding_flow(phone, "Hi", db, media_id, media_type)
+            # Player flow handles customer sessions
+            return await handle_player_flow(phone, text, db)
 
         # Captain approval check
         if await handle_captain_approval(phone, text, None, db):
             return
 
-        # Player flow
-        return await handle_player_flow(phone, text, db)
+        # Fallback: show role selection
+        await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
+        await show_role_selection(phone)
+
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -553,17 +597,29 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             await whatsapp_service.send_text(phone, "No active turfs available at the moment. Please check back later!")
             return
 
-        sections = [{
-            "title": "Available Turfs",
-            "rows": [
-                {
-                    "id": f"select_turf_{o.id}",
-                    "title": o.turfName[:24],
-                    "description": f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr | {o.location[:30]}",
-                }
-                for o in owners[:10]
-            ],
-        }]
+        sections = [
+            {
+                "title": "Available Turfs",
+                "rows": [
+                    {
+                        "id": f"select_turf_{o.id}",
+                        "title": o.turfName[:24],
+                        "description": f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr | {o.location[:30]}",
+                    }
+                    for o in owners[:10]
+                ],
+            },
+            {
+                "title": "Go Back",
+                "rows": [
+                    {
+                        "id": "back_to_roles",
+                        "title": "🔙 Back to Main Menu",
+                        "description": "Switch between Player and Owner roles",
+                    }
+                ],
+            }
+        ]
 
         await whatsapp_service.send_list(
             phone,
@@ -578,6 +634,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             [
                 {"id": "player_join_game", "title": "🎮 Join a Game"},
                 {"id": "player_my_bookings", "title": "📋 My Bookings"},
+                {"id": "back_to_roles", "title": "🔙 Back to Roles"},
             ],
         )
         await update_session(phone, "PLAYER_START", {}, db, role="CUSTOMER")

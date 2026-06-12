@@ -103,8 +103,13 @@ async def test_complete_e2e_flow(client, db_session):
     # 1. OWNER ONBOARDING
     # ══════════════════════════════════════════════════════════════
     
-    # 1.1 Initiate onboarding
-    resp = await send_whatsapp_msg(client, owner_phone, "onboard", onboarding_bot)
+    # 1.1 Initiate onboarding (triggers role selection first)
+    resp = await send_whatsapp_msg(client, owner_phone, "hi", onboarding_bot)
+    assert resp.status_code == 200
+    assert_wa_message_contains(owner_phone, "select your role")
+
+    # Select "I'm an Owner" role
+    resp = await send_whatsapp_msg(client, owner_phone, "role_owner", onboarding_bot)
     assert resp.status_code == 200
     assert_wa_message_contains(owner_phone, "Owner Name")
 
@@ -211,8 +216,13 @@ async def test_complete_e2e_flow(client, db_session):
     # 4. PLAYER BOOKING FLOW
     # ══════════════════════════════════════════════════════════════
     
-    # 4.1 Player sends menu trigger
-    resp = await send_whatsapp_msg(client, player_phone, "book", onboarding_bot)
+    # 4.1 Player sends menu trigger (triggers role selection first)
+    resp = await send_whatsapp_msg(client, player_phone, "hi", onboarding_bot)
+    assert resp.status_code == 200
+    assert_wa_message_contains(player_phone, "select your role")
+
+    # Select "I'm a Player" role
+    resp = await send_whatsapp_msg(client, player_phone, "role_player", onboarding_bot)
     assert resp.status_code == 200
     assert_wa_message_contains(player_phone, "Strikers Turf")
 
