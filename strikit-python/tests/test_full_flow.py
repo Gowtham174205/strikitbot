@@ -329,6 +329,11 @@ async def test_complete_e2e_flow(client, db_session):
     assert_wa_message_contains(player_phone, "Booking Confirmed")
     assert_wa_message_contains(player_phone, "₹1050.00")
 
+    # Verify owner received alert
+    assert_wa_message_contains(owner_phone, "New Booking Alert")
+    assert_wa_message_contains(owner_phone, "Strikers Turf")
+
+
     # ══════════════════════════════════════════════════════════════
     # 6. IDEMPOTENCY / SAFETY CHECKS
     # ══════════════════════════════════════════════════════════════

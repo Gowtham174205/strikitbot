@@ -376,6 +376,35 @@ async def _handle_booking_payment(
         logger.error(f"[Razorpay Webhook] WhatsApp notification failed: {wa_err}")
 
     try:
+        payout_status_text = ""
+        if booking.payoutStatus == "COMPLETED":
+            payout_status_text = f"₹{amount_service.paise_to_rupees(owner_share_paise)} (Sent to UPI)"
+        elif booking.payoutStatus == "MANUAL_REVIEW":
+            payout_status_text = "Pending Manual Review"
+        elif booking.payoutStatus == "FAILED":
+            payout_status_text = "Payout Failed (Developer alert sent)"
+        else:
+            payout_status_text = "Processing"
+
+        rupee_total = amount_service.paise_to_rupees(amount_paid_paise)
+        await whatsapp_service.send_text(
+            owner.mobile,
+            f"📅 *New Booking Alert for {owner.turfName}!* 📅\n\n"
+            f"Hello {owner.name}, a new booking has been confirmed at your turf:\n\n"
+            f"• Date: {date}\n"
+            f"• Time Slot: {slot_time}\n"
+            f"• Team Name: {team_name}\n"
+            f"• Captain Name: {captain_name} ({phone})\n"
+            f"• Total Paid by Player: ₹{rupee_total}\n"
+            f"• Payout Sent to you: {payout_status_text}\n\n"
+            f"The slot status has been updated to *BOOKED* in your inventory.\n\n"
+            f"_Powered by STRIKIT_",
+        )
+    except Exception as wa_owner_err:
+        logger.error(f"[Razorpay Webhook] Owner WhatsApp notification failed: {wa_owner_err}")
+
+
+    try:
         await telegram_service.send_alert(
             f"New Booking at {owner.turfName}:\n"
             f"Captain: {captain_name} ({phone})\n"
