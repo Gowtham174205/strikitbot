@@ -224,6 +224,11 @@ async def test_complete_e2e_flow(client, db_session):
     # Select "I'm a Player" role
     resp = await send_whatsapp_msg(client, player_phone, "role_player", onboarding_bot)
     assert resp.status_code == 200
+    assert_wa_message_contains(player_phone, "share your current location")
+
+    # Share location coordinates (match owner's turf coordinates 12.9715987, 77.5945627)
+    resp = await send_whatsapp_msg(client, player_phone, "location:12.9715987,77.5945627", onboarding_bot)
+    assert resp.status_code == 200
     assert_wa_message_contains(player_phone, "Strikers Turf")
 
     # 4.2 Select turf
@@ -373,3 +378,35 @@ async def test_complete_e2e_flow(client, db_session):
         select(BotBooking).where(BotBooking.razorpayPaymentId == "pay_book_456")
     )).scalars().first()
     assert failed_booking is None
+
+
+@pytest.mark.asyncio
+async def test_owner_onboarding_back_button(client, db_session):
+    owner_phone = "919111111111"
+    onboarding_bot = "919360756749"
+
+    clear_wa()
+
+    # Initiate onboarding
+    resp = await send_whatsapp_msg(client, owner_phone, "hi", onboarding_bot)
+    assert resp.status_code == 200
+
+    resp = await send_whatsapp_msg(client, owner_phone, "role_owner", onboarding_bot)
+    assert resp.status_code == 200
+    assert_wa_message_contains(owner_phone, "Owner Name")
+
+    # Send cancel/back button payload
+    resp = await send_whatsapp_msg(client, owner_phone, "cancel_onboarding", onboarding_bot)
+    assert resp.status_code == 200
+
+    # It should show role selection menu again
+    assert_wa_message_contains(owner_phone, "select your role")
+
+    # The session role should be customer/customer state
+    session = (await db_session.execute(
+        select(BotSession).where(BotSession.phone == owner_phone)
+    )).scalars().first()
+    assert session is not None
+    assert session.role == "CUSTOMER"
+    assert session.state == "ROLE_SELECTION"
+

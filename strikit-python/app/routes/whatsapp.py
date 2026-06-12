@@ -188,7 +188,7 @@ async def handle_whatsapp_message(
         session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
 
         # Handle back/cancel command inside onboarding flow
-        if session and session.role == "ONBOARDING" and lower in ("cancel", "/cancel", "back"):
+        if session and session.role == "ONBOARDING" and lower in ("cancel", "/cancel", "back", "cancel_onboarding"):
             await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
             await show_role_selection(phone)
             return
@@ -213,6 +213,54 @@ async def handle_whatsapp_message(
         await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
         await show_role_selection(phone)
 
+
+def calculate_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate geodesic distance between two points in km."""
+    import math
+    R = 6371.0  # Earth radius in km
+    dLat = math.radians(lat2 - lat1)
+    dLon = math.radians(lon2 - lon1)
+    a = (math.sin(dLat / 2) * math.sin(dLat / 2) +
+         math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+         math.sin(dLon / 2) * math.sin(dLon / 2))
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+async def extract_coordinates_from_url(url: str) -> dict:
+    """Resolve redirect and extract coordinates from a Google Maps link."""
+    import re
+    import httpx
+    at_regex = r'@(-?\d+\.\d+),(-?\d+\.\d+)'
+    q_regex = r'[?&](q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)'
+    
+    # Try direct parse
+    match = re.search(at_regex, url)
+    if match:
+        return {"latitude": float(match.group(1)), "longitude": float(match.group(2))}
+        
+    match = re.search(q_regex, url)
+    if match:
+        return {"latitude": float(match.group(2)), "longitude": float(match.group(3))}
+        
+    # Resolve redirect
+    if any(domain in url for domain in ['goo.gl', 'maps.app.goo.gl', 'maps.google.com', 'google.com/maps']):
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                resp = await client.get(url, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.0.0 Safari/537.36'
+                })
+                target_url = str(resp.url)
+                match = re.search(at_regex, target_url)
+                if match:
+                    return {"latitude": float(match.group(1)), "longitude": float(match.group(2))}
+                match = re.search(q_regex, target_url)
+                if match:
+                    return {"latitude": float(match.group(2)), "longitude": float(match.group(3))}
+        except Exception as e:
+            logger.error(f"Error resolving Google Maps URL: {e}")
+            
+    return None
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -284,8 +332,10 @@ async def handle_onboarding_flow(
     elif state == "AWAITING_LOCATION":
         context["location"] = sanitize_input(text, 500)
         # Try to extract lat/lng from Google Maps URL
-        if "maps" in text.lower() or text.startswith("location:"):
-            pass  # Valid location format
+        coords = await extract_coordinates_from_url(text)
+        if coords:
+            context["latitude"] = coords["latitude"]
+            context["longitude"] = coords["longitude"]
         await whatsapp_service.send_buttons(
             phone,
             "Please upload your *turf photos* (send as images). Click Done when finished:",
@@ -385,6 +435,8 @@ async def handle_onboarding_flow(
             msme=context.get("msme"),
             upiId=context["upiId"],
             pricePerHourPaise=100000,  # Default ₹1000
+            latitude=context.get("latitude"),
+            longitude=context.get("longitude"),
         )
         db.add(owner)
         await db.flush()
@@ -644,58 +696,109 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
     lower = text.lower().strip()
     session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
 
-    # Player menu / turf selection
-    if not session or lower in ("hi", "hello", "book", "/book", "menu"):
-        owners = (await db.execute(
-            select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
-        )).scalars().all()
-
-        if not owners:
-            await whatsapp_service.send_text(phone, "No active turfs available at the moment. Please check back later!")
-            return
-
-        sections = [
-            {
-                "title": "Available Turfs",
-                "rows": [
-                    {
-                        "id": f"select_turf_{o.id}",
-                        "title": o.turfName[:24],
-                        "description": f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr | {o.location[:30]}",
-                    }
-                    for o in owners[:10]
-                ],
-            },
-            {
-                "title": "Go Back",
-                "rows": [
-                    {
-                        "id": "back_to_roles",
-                        "title": "🔙 Back to Main Menu",
-                        "description": "Switch between Player and Owner roles",
-                    }
-                ],
-            }
-        ]
-
-        await whatsapp_service.send_list(
-            phone,
-            "👋 *Welcome to STRIKIT!*\n\nBook a turf or join a game.\n\nSelect a turf below:",
-            "🏟️ View Turfs",
-            sections,
-        )
-
+    # Player menu / location query
+    if not session or lower in ("hi", "hello", "book", "/book", "menu") or session.state == "PLAYER_START":
         await whatsapp_service.send_buttons(
             phone,
-            "Or choose an option:",
+            "👋 *Welcome to STRIKIT!*\n\nTo help you find the best turfs nearby, please share your current location using the native WhatsApp Location sharing button (📎 -> Location):",
             [
                 {"id": "player_join_game", "title": "🎮 Join a Game"},
                 {"id": "player_my_bookings", "title": "📋 My Bookings"},
-                {"id": "back_to_roles", "title": "🔙 Back to Roles"},
-            ],
+                {"id": "back_to_roles", "title": "🔙 Back to Menu"},
+            ]
         )
-        await update_session(phone, "PLAYER_START", {}, db, role="CUSTOMER")
+        await update_session(phone, "AWAITING_LOCATION_OR_SEARCH", {}, db, role="CUSTOMER")
         return
+
+    # Handle location receipt / turf list calculation
+    if session and session.state == "AWAITING_LOCATION_OR_SEARCH":
+        if text.startswith("location:"):
+            try:
+                parts = text.replace("location:", "").split(",")
+                player_lat = float(parts[0])
+                player_lng = float(parts[1])
+            except Exception:
+                await whatsapp_service.send_text(phone, "❌ Error parsing location. Please try sharing your location again:")
+                return
+
+            owners = (await db.execute(
+                select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
+            )).scalars().all()
+
+            nearby_turfs = []
+            for o in owners:
+                if o.latitude is not None and o.longitude is not None:
+                    dist = calculate_distance(player_lat, player_lng, o.latitude, o.longitude)
+                else:
+                    dist = 999999.0
+                nearby_turfs.append((o, dist))
+
+            # Sort by distance
+            nearby_turfs.sort(key=lambda item: item[1])
+
+            # Filter within 10km
+            within_10km = [item for item in nearby_turfs if item[1] <= 10.0]
+            display_turfs = within_10km if within_10km else nearby_turfs[:10]
+
+            if not display_turfs:
+                await whatsapp_service.send_text(phone, "No active turfs available at the moment. Please check back later!")
+                return
+
+            sections = [
+                {
+                    "title": "Nearby Turfs" if within_10km else "Available Turfs",
+                    "rows": [
+                        {
+                            "id": f"select_turf_{o.id}",
+                            "title": o.turfName[:24],
+                            "description": f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr | {dist:.1f} km away" if dist < 999999.0 else f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr",
+                        }
+                        for o, dist in display_turfs
+                    ],
+                },
+                {
+                    "title": "Go Back",
+                    "rows": [
+                        {
+                            "id": "back_to_roles",
+                            "title": "🔙 Back to Main Menu",
+                            "description": "Switch between Player and Owner roles",
+                        }
+                    ],
+                }
+            ]
+
+            msg = "🏟️ *Nearby Turfs Found (within 10km):*\n\nSelect a turf below to book:" if within_10km else "🏟️ *Available Turfs (sorted by distance):*\n\nSelect a turf below:"
+            await whatsapp_service.send_list(
+                phone,
+                msg,
+                "🏟️ View Turfs",
+                sections,
+            )
+
+            await whatsapp_service.send_buttons(
+                phone,
+                "Or choose an option:",
+                [
+                    {"id": "player_join_game", "title": "🎮 Join a Game"},
+                    {"id": "player_my_bookings", "title": "📋 My Bookings"},
+                    {"id": "back_to_roles", "title": "🔙 Back to Roles"},
+                ],
+            )
+            # Transition to AWAITING_TURF_SELECTION to handle select_turf_ clicks
+            await update_session(phone, "AWAITING_TURF_SELECTION", {}, db, role="CUSTOMER")
+            return
+        else:
+            await whatsapp_service.send_buttons(
+                phone,
+                "⚠️ Please share your current location using the native WhatsApp Location sharing button (📎 -> Location) so we can find turfs nearby:",
+                [
+                    {"id": "player_join_game", "title": "🎮 Join a Game"},
+                    {"id": "player_my_bookings", "title": "📋 My Bookings"},
+                    {"id": "back_to_roles", "title": "🔙 Back to Menu"},
+                ]
+            )
+            return
 
     # Context
     context = json.loads(session.context or "{}") if session else {}
