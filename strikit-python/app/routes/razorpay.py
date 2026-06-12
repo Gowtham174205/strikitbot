@@ -126,6 +126,7 @@ async def _handle_booking_payment(
     slot_time = notes.get("slotTime", "")
     captain_name = notes.get("captainName", "")
     team_name = notes.get("teamName", "")
+    sport = notes.get("sport", "N/A")
     expected_total_str = notes.get("expectedTotalPaise", "0")
 
     if not all([owner_id, phone, date, slot_time, captain_name, team_name]):
@@ -230,6 +231,7 @@ async def _handle_booking_payment(
             teamName=team_name,
             captainName=captain_name,
             captainPhone=phone,
+            sport=sport,
             paymentLinkId=payment_link_id,
             razorpayPaymentId=razorpay_payment_id,
             totalPaidPaise=amount_paid_paise,
@@ -367,6 +369,7 @@ async def _handle_booking_payment(
             f"• Turf: *{owner.turfName}*\n"
             f"• Date: {date}\n"
             f"• Time Slot: {slot_time}\n"
+            f"• Sport/Event: {sport}\n"
             f"• Team Name: {team_name}\n"
             f"• Amount Paid: ₹{rupee_total}\n"
             f"• STRIKIT Booking Fee: ₹{rupee_fee}\n\n"
@@ -393,6 +396,7 @@ async def _handle_booking_payment(
             f"Hello {owner.name}, a new booking has been confirmed at your turf:\n\n"
             f"• Date: {date}\n"
             f"• Time Slot: {slot_time}\n"
+            f"• Sport/Event: {sport}\n"
             f"• Team Name: {team_name}\n"
             f"• Captain Name: {captain_name} ({phone})\n"
             f"• Total Paid by Player: ₹{rupee_total}\n"

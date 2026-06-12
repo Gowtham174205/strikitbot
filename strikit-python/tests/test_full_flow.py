@@ -246,11 +246,17 @@ async def test_complete_e2e_flow(client, db_session):
     assert resp.status_code == 200
     assert_wa_message_contains(player_phone, "Name and Team Name")
 
-    # 4.5 Send Team Details (generates payment link)
+    # 4.5 Send Team Details
     resp = await send_whatsapp_msg(client, player_phone, "John - HawksFC", onboarding_bot)
+    assert resp.status_code == 200
+    assert_wa_message_contains(player_phone, "Sport/Event")
+
+    # 4.6 Send Sport Details (generates payment link)
+    resp = await send_whatsapp_msg(client, player_phone, "Football", onboarding_bot)
     assert resp.status_code == 200
     assert_wa_message_contains(player_phone, "Booking Summary")
     assert_wa_message_contains(player_phone, "Total Amount")
+    assert_wa_message_contains(player_phone, "Sport/Event: Football")
 
     # Verify slot is created/reserved (still status AVAILABLE, session exists)
     session = (await db_session.execute(select(BotSession).where(BotSession.phone == player_phone))).scalars().first()
@@ -275,6 +281,7 @@ async def test_complete_e2e_flow(client, db_session):
                         "slotTime": "07:00 PM",
                         "captainName": "John",
                         "teamName": "HawksFC",
+                        "sport": "Football",
                         "expectedTotalPaise": "105000",
                     }
                 }
@@ -360,6 +367,7 @@ async def test_complete_e2e_flow(client, db_session):
                         "slotTime": "08:00 PM",
                         "captainName": "John",
                         "teamName": "HawksFC",
+                        "sport": "Football",
                         "expectedTotalPaise": "105000",
                     }
                 }

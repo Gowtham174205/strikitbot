@@ -62,6 +62,7 @@ def create_booking_link(
     captain_name: str,
     team_name: str,
     total_amount_paise: int,
+    sport: str = "",
 ) -> str:
     """
     Create a Razorpay payment link for a turf booking.
@@ -72,7 +73,7 @@ def create_booking_link(
         logger.info(f"[PaymentService] Mock booking link for slot {slot_time} on {date}")
         return (
             f"http://razorpay.mock/pay?slot={slot_time}&date={date}"
-            f"&owner={owner_id}&phone={phone}&amount_paise={total_amount_paise}"
+            f"&owner={owner_id}&phone={phone}&amount_paise={total_amount_paise}&sport={sport}"
         )
 
     try:
@@ -94,6 +95,7 @@ def create_booking_link(
                 "slotTime": str(slot_time),
                 "captainName": str(captain_name),
                 "teamName": str(team_name),
+                "sport": str(sport),
                 # Store expected amount in paise for cross-verification on webhook
                 "expectedTotalPaise": str(total_amount_paise),
             },

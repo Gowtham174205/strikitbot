@@ -906,6 +906,14 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         context["captainName"] = parts[0].strip()
         context["teamName"] = parts[1].strip()
 
+        await whatsapp_service.send_text(phone, "Please enter the *Sport/Event* you are playing (e.g. Cricket, Football):")
+        await update_session(phone, "AWAITING_SPORT_DETAILS", context, db)
+        return
+
+    # Sport details
+    if state == "AWAITING_SPORT_DETAILS":
+        context["sport"] = text.strip()
+
         owner = await db.get(BotOwner, context.get("ownerId"))
         if not owner:
             await whatsapp_service.send_text(phone, "Error: Turf owner not found.")
@@ -926,6 +934,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             captain_name=context["captainName"],
             team_name=context["teamName"],
             total_amount_paise=total_paise,
+            sport=context["sport"],
         )
 
         await whatsapp_service.send_text(
@@ -935,6 +944,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             f"• Turf: *{owner.turfName}*\n"
             f"• Date: {context['selectedDate']}\n"
             f"• Time Slot: {context['selectedSlot']}\n"
+            f"• Sport/Event: {context['sport']}\n"
             f"• Captain Name: {context['captainName']}\n"
             f"• Team Name: {context['teamName']}\n\n"
             f"*Payment Breakdown:*\n"

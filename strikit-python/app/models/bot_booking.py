@@ -16,6 +16,7 @@ class BotBooking(Base):
     teamName = Column(String, nullable=False)
     captainName = Column(String, nullable=False)
     captainPhone = Column(String, nullable=False)
+    sport = Column(String, nullable=True)
 
     # ── Payment Tracking ──
     paymentLinkId = Column(String, nullable=True)        # Razorpay payment link ID (used for idempotency)
