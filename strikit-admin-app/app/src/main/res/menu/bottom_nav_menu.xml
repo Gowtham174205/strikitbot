@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_owners"
+        android:icon="@drawable/ic_owners"
+        android:title="Turfs" />
+    <item
+        android:id="@+id/nav_payouts"
+        android:icon="@drawable/ic_payouts"
+        android:title="Payouts" />
+    <item
+        android:id="@+id/nav_telegram"
+        android:icon="@drawable/ic_webhooks"
+        android:title="Telegram" />
+</menu>

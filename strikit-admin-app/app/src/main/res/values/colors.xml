@@ -11,6 +11,7 @@
     <!-- Status colors -->
     <color name="status_verified">#00E676</color>
     <color name="status_unverified">#8E8E93</color>
+    <color name="status_pending">#FFA000</color>
     <color name="status_active">#0288D1</color>
     <color name="status_inactive">#EF5350</color>
     

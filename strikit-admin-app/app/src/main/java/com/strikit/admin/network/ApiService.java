@@ -1,6 +1,10 @@
 package com.strikit.admin.network;
 
 import com.strikit.admin.model.Owner;
+import com.strikit.admin.model.AdminStats;
+import com.strikit.admin.model.Payout;
+import com.strikit.admin.model.PayoutRetryResponse;
+import com.strikit.admin.model.TelegramWebhookResponse;
 import java.util.List;
 import retrofit2.Call;
 import retrofit2.http.DELETE;
@@ -21,4 +25,16 @@ public interface ApiService {
 
     @DELETE("owners/{id}")
     Call<Void> deleteOwner(@Path("id") int id);
+
+    @GET("stats")
+    Call<AdminStats> getStats();
+
+    @GET("payouts")
+    Call<List<Payout>> getPayouts(@Query("status") String status);
+
+    @POST("payouts/{payout_id}/retry")
+    Call<PayoutRetryResponse> retryPayout(@Path("payout_id") int payoutId);
+
+    @POST("telegram/setup-webhook")
+    Call<TelegramWebhookResponse> setupTelegramWebhook();
 }

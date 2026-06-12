@@ -423,3 +423,29 @@ async def test_owner_onboarding_back_button(client, db_session):
     assert session.role == "CUSTOMER"
     assert session.state == "ROLE_SELECTION"
 
+
+@pytest.mark.asyncio
+async def test_admin_api_stats_and_routes(client, db_session):
+    headers = {"x-admin-key": "test-admin-key-12345"}
+    
+    # 1. Fetch stats
+    resp = await client.get("/api/admin/stats", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "activeTurfs" in data
+    assert "pendingVerifications" in data
+    assert "failedPayouts" in data
+    assert "totalBookings" in data
+    assert "totalRevenuePaise" in data
+
+    # 2. Fetch owners
+    resp = await client.get("/api/admin/owners", headers=headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+    # 3. Fetch payouts
+    resp = await client.get("/api/admin/payouts", headers=headers)
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+

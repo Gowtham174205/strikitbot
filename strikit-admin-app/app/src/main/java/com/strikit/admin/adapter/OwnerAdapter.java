@@ -82,8 +82,8 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
             holder.btnReject.setVisibility(View.VISIBLE);
         } else {
             holder.badgeVerified.setText("PENDING VERIFICATION");
-            holder.badgeVerified.setTextColor(ContextCompat.getColor(context, R.color.text_primary));
-            holder.badgeVerified.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.btn_grey)));
+            holder.badgeVerified.setTextColor(ContextCompat.getColor(context, R.color.bg_dark));
+            holder.badgeVerified.setBackgroundTintList(ColorStateList.valueOf(ContextCompat.getColor(context, R.color.status_pending)));
             
             holder.btnApprove.setVisibility(View.VISIBLE);
             holder.btnReject.setVisibility(View.GONE);

@@ -182,6 +182,48 @@ async def delete_owner(owner_id: int, db: AsyncSession = Depends(get_db)):
 
 
 # ══════════════════════════════════════════════════════════════════
+# ADMINISTRATIVE STATS (NEW)
+# ══════════════════════════════════════════════════════════════════
+
+@router.get("/stats")
+async def get_admin_stats(db: AsyncSession = Depends(get_db)):
+    """Retrieve administrative metrics and stats."""
+    # Active Turfs (verified = True, subscriptionActive = True)
+    active_res = await db.execute(
+        select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
+    )
+    active_turfs = len(active_res.scalars().all())
+    
+    # Pending Verifications (verified = False)
+    pending_res = await db.execute(
+        select(BotOwner).where(BotOwner.verified == False)
+    )
+    pending_verifications = len(pending_res.scalars().all())
+    
+    # Failed Payouts
+    failed_res = await db.execute(
+        select(BotPayoutLedger).where(BotPayoutLedger.status == "FAILED")
+    )
+    failed_payouts = len(failed_res.scalars().all())
+
+    # Total Bookings
+    bookings_res = await db.execute(select(BotBooking))
+    total_bookings = len(bookings_res.scalars().all())
+
+    # Total Revenue (sum of totalPaidPaise for bookings)
+    revenue_res = await db.execute(select(BotBooking.totalPaidPaise))
+    total_revenue_paise = sum(revenue_res.scalars().all()) or 0
+
+    return {
+        "activeTurfs": active_turfs,
+        "pendingVerifications": pending_verifications,
+        "failedPayouts": failed_payouts,
+        "totalBookings": total_bookings,
+        "totalRevenuePaise": total_revenue_paise
+    }
+
+
+# ══════════════════════════════════════════════════════════════════
 # PAYOUT MONITORING (NEW)
 # ══════════════════════════════════════════════════════════════════
 
