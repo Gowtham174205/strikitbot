@@ -253,19 +253,32 @@ async def handle_onboarding_flow(
 
     context = json.loads(session.context or "{}")
     state = session.state
+    lower = text.lower().strip()
 
     if state == "ONBOARDING_START":
-        await whatsapp_service.send_text(phone, "Welcome to STRIKIT Onboarding! Let's get your turf set up.\n\nPlease enter the *Owner Name*:")
+        await whatsapp_service.send_buttons(
+            phone,
+            "Welcome to STRIKIT Onboarding! Let's get your turf set up.\n\nPlease enter the *Owner Name*:",
+            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+        )
         await update_session(phone, "AWAITING_OWNER_NAME", context, db, role="ONBOARDING")
 
     elif state == "AWAITING_OWNER_NAME":
         context["ownerName"] = sanitize_input(text, 100)
-        await whatsapp_service.send_text(phone, f"Thank you, {context['ownerName']}. Now, please enter your *Turf Name*:")
+        await whatsapp_service.send_buttons(
+            phone,
+            f"Thank you, {context['ownerName']}. Now, please enter your *Turf Name*:",
+            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+        )
         await update_session(phone, "AWAITING_TURF_NAME", context, db)
 
     elif state == "AWAITING_TURF_NAME":
         context["turfName"] = sanitize_input(text, 100)
-        await whatsapp_service.send_text(phone, f'Got it: "{text}". Please enter the *Location* as a Google Maps link:')
+        await whatsapp_service.send_buttons(
+            phone,
+            f'Got it: "{text}". Please enter the *Location* as a Google Maps link:',
+            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+        )
         await update_session(phone, "AWAITING_LOCATION", context, db)
 
     elif state == "AWAITING_LOCATION":
@@ -273,37 +286,76 @@ async def handle_onboarding_flow(
         # Try to extract lat/lng from Google Maps URL
         if "maps" in text.lower() or text.startswith("location:"):
             pass  # Valid location format
-        await whatsapp_service.send_text(phone, "Please upload your *turf photos* (send as images). Type *DONE* when finished:")
+        await whatsapp_service.send_buttons(
+            phone,
+            "Please upload your *turf photos* (send as images). Click Done when finished:",
+            [
+                {"id": "onboarding_photos_done", "title": "✅ Done Uploading"},
+                {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+            ]
+        )
         context["photoUrls"] = []
         await update_session(phone, "AWAITING_PHOTOS", context, db)
 
     elif state == "AWAITING_PHOTOS":
-        if text.upper() == "DONE":
+        if text.upper() == "DONE" or lower == "onboarding_photos_done":
             photos = context.get("photoUrls", [])
             if not photos:
                 context["photoUrls"] = "No photos uploaded"
             else:
                 context["photoUrls"] = ", ".join(photos)
-            await whatsapp_service.send_text(phone, "Enter your *GST Number* (or type SKIP):")
+            await whatsapp_service.send_buttons(
+                phone,
+                "Enter your *GST Number*:",
+                [
+                    {"id": "onboarding_gst_skip", "title": "⏭️ Skip GST"},
+                    {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+                ]
+            )
             await update_session(phone, "AWAITING_GST", context, db)
         elif media_id and media_type == "image":
             media_url = await whatsapp_service.get_media_url(media_id)
             photos = context.get("photoUrls", [])
             photos.append(media_url)
             context["photoUrls"] = photos
-            await whatsapp_service.send_text(phone, f"📷 Photo {len(photos)} received! Send more or type *DONE*.")
+            await whatsapp_service.send_buttons(
+                phone,
+                f"📷 Photo {len(photos)} received! Send more or click Done.",
+                [
+                    {"id": "onboarding_photos_done", "title": "✅ Done Uploading"},
+                    {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+                ]
+            )
             await update_session(phone, "AWAITING_PHOTOS", context, db)
         else:
-            await whatsapp_service.send_text(phone, "Please send photos as images, or type *DONE* to continue.")
+            await whatsapp_service.send_buttons(
+                phone,
+                "Please send photos as images, or click Done to continue.",
+                [
+                    {"id": "onboarding_photos_done", "title": "✅ Done Uploading"},
+                    {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+                ]
+            )
 
     elif state == "AWAITING_GST":
-        context["gst"] = None if text.upper() == "SKIP" else sanitize_input(text, 50)
-        await whatsapp_service.send_text(phone, "Enter your *MSME Udyam Number* (or type SKIP):")
+        context["gst"] = None if text.upper() == "SKIP" or lower == "onboarding_gst_skip" else sanitize_input(text, 50)
+        await whatsapp_service.send_buttons(
+            phone,
+            "Enter your *MSME Udyam Number*:",
+            [
+                {"id": "onboarding_msme_skip", "title": "⏭️ Skip MSME"},
+                {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+            ]
+        )
         await update_session(phone, "AWAITING_MSME", context, db)
 
     elif state == "AWAITING_MSME":
-        context["msme"] = None if text.upper() == "SKIP" else sanitize_input(text, 50)
-        await whatsapp_service.send_text(phone, "Enter your *UPI ID* for receiving payouts (e.g. name@upi):")
+        context["msme"] = None if text.upper() == "SKIP" or lower == "onboarding_msme_skip" else sanitize_input(text, 50)
+        await whatsapp_service.send_buttons(
+            phone,
+            "Enter your *UPI ID* for receiving payouts (e.g. name@upi):",
+            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+        )
         await update_session(phone, "AWAITING_UPI", context, db)
 
     elif state == "AWAITING_UPI":
@@ -311,7 +363,11 @@ async def handle_onboarding_flow(
 
         # Validate UPI format
         if not amount_service.validate_upi_id(context["upiId"]):
-            await whatsapp_service.send_text(phone, "⚠️ Invalid UPI format. Please enter a valid UPI ID (e.g. name@upi):")
+            await whatsapp_service.send_buttons(
+                phone,
+                "⚠️ Invalid UPI format. Please enter a UPI ID for payouts (e.g. name@upi):",
+                [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+            )
             return
 
         # Create owner record
@@ -350,6 +406,7 @@ async def handle_onboarding_flow(
         await whatsapp_service.send_developer_verification_alert(owner)
         await telegram_service.send_verification_alert(owner)
         await db.commit()
+
 
     elif state == "AWAITING_VERIFICATION":
         await whatsapp_service.send_text(phone, "⏳ Your verification is still pending. We'll notify you once approved!")
