@@ -474,7 +474,7 @@ async def handle_onboarding_flow(
         context["gst"] = None if text.upper() == "SKIP" or lower == "onboarding_gst_skip" else sanitize_input(text, 50)
         await whatsapp_service.send_buttons(
             phone,
-            "Enter your *MSME Udyam Number*:",
+            "Please upload your *MSME Certificate* as a photo or PDF document:",
             [
                 {"id": "onboarding_msme_skip", "title": "⏭️ Skip MSME"},
                 {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
@@ -483,7 +483,51 @@ async def handle_onboarding_flow(
         await update_session(phone, "AWAITING_MSME", context, db)
 
     elif state == "AWAITING_MSME":
-        context["msme"] = None if text.upper() == "SKIP" or lower == "onboarding_msme_skip" else sanitize_input(text, 50)
+        if lower == "onboarding_msme_skip" or text.upper() == "SKIP":
+            context["msme"] = None
+            context["msmeCardUrl"] = None
+        elif media_id and media_type in ("image", "document"):
+            media_url = await whatsapp_service.get_media_url(media_id)
+            context["msme"] = "Uploaded File"
+            context["msmeCardUrl"] = media_url
+        else:
+            await whatsapp_service.send_buttons(
+                phone,
+                "⚠️ Invalid input. Please upload a photo or PDF of your *MSME Certificate*, or click Skip:",
+                [
+                    {"id": "onboarding_msme_skip", "title": "⏭️ Skip MSME"},
+                    {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+                ]
+            )
+            return
+
+        await whatsapp_service.send_buttons(
+            phone,
+            "Please upload your *Utility Bill* (e.g. EB, water, postpaid, fiber bill) as a photo or PDF:",
+            [
+                {"id": "onboarding_utility_skip", "title": "⏭️ Skip Utility"},
+                {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+            ]
+        )
+        await update_session(phone, "AWAITING_UTILITY_BILL", context, db)
+
+    elif state == "AWAITING_UTILITY_BILL":
+        if lower == "onboarding_utility_skip" or text.upper() == "SKIP":
+            context["utilityBillUrl"] = None
+        elif media_id and media_type in ("image", "document"):
+            media_url = await whatsapp_service.get_media_url(media_id)
+            context["utilityBillUrl"] = media_url
+        else:
+            await whatsapp_service.send_buttons(
+                phone,
+                "⚠️ Invalid input. Please upload a photo or PDF of your *Utility Bill*, or click Skip:",
+                [
+                    {"id": "onboarding_utility_skip", "title": "⏭️ Skip Utility"},
+                    {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+                ]
+            )
+            return
+
         await whatsapp_service.send_buttons(
             phone,
             "Enter your *UPI ID* for receiving payouts (e.g. name@upi):",
@@ -516,6 +560,8 @@ async def handle_onboarding_flow(
             photoUrls=photo_str,
             gst=context.get("gst"),
             msme=context.get("msme"),
+            msmeCardUrl=context.get("msmeCardUrl"),
+            utilityBillUrl=context.get("utilityBillUrl"),
             upiId=context["upiId"],
             pricePerHourPaise=100000,  # Default ₹1000
             latitude=context.get("latitude"),

@@ -19,6 +19,8 @@ class BotOwner(Base):
     photoUrls = Column(String, nullable=False)
     gst = Column(String, nullable=True)
     msme = Column(String, nullable=True)
+    msmeCardUrl = Column(String, nullable=True)
+    utilityBillUrl = Column(String, nullable=True)
     upiId = Column(String, nullable=True)
     razorpayContactId = Column(String, nullable=True)
     razorpayFundAccountId = Column(String, nullable=True)

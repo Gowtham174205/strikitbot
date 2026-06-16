@@ -60,6 +60,14 @@ async def send_alert(text: str) -> dict:
 
 async def send_verification_alert(owner) -> dict:
     """Send new owner verification request with approve/reject buttons."""
+    msme_val = _escape_html(owner.msme or 'N/A')
+    if owner.msmeCardUrl:
+        msme_val = f'<a href="{owner.msmeCardUrl}">Uploaded Certificate</a>'
+
+    util_val = "N/A"
+    if owner.utilityBillUrl:
+        util_val = f'<a href="{owner.utilityBillUrl}">Uploaded Bill</a>'
+
     text = (
         f"🆕 <b>New Owner Onboarding</b>\n\n"
         f"<b>Name:</b> {_escape_html(owner.name)}\n"
@@ -68,7 +76,8 @@ async def send_verification_alert(owner) -> dict:
         f"<b>Location:</b> {_escape_html(owner.location)}\n"
         f"<b>Photos:</b> {_escape_html(owner.photoUrls)}\n"
         f"<b>GST:</b> {_escape_html(owner.gst or 'N/A')}\n"
-        f"<b>MSME:</b> {_escape_html(owner.msme or 'N/A')}\n\n"
+        f"<b>MSME:</b> {msme_val}\n"
+        f"<b>Utility Bill:</b> {util_val}\n\n"
         f"Please verify details and action below:"
     )
     return await _send_telegram_request("sendMessage", {

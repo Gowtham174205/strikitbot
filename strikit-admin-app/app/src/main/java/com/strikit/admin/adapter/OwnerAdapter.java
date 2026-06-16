@@ -72,6 +72,30 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
             holder.tvLocation.setVisibility(View.GONE);
         }
 
+        // Bind MSME Certificate
+        if (owner.getMsmeCardUrl() != null && !owner.getMsmeCardUrl().isEmpty()) {
+            String linkText = "<a href=\"" + owner.getMsmeCardUrl() + "\">View Certificate</a>";
+            holder.tvMsme.setText(Html.fromHtml("MSME: " + linkText, Html.FROM_HTML_MODE_COMPACT));
+            holder.tvMsme.setMovementMethod(LinkMovementMethod.getInstance());
+            holder.tvMsme.setVisibility(View.VISIBLE);
+        } else if (owner.getMsme() != null && !owner.getMsme().isEmpty()) {
+            holder.tvMsme.setText("MSME: " + owner.getMsme());
+            holder.tvMsme.setMovementMethod(null);
+            holder.tvMsme.setVisibility(View.VISIBLE);
+        } else {
+            holder.tvMsme.setVisibility(View.GONE);
+        }
+
+        // Bind Utility Bill
+        if (owner.getUtilityBillUrl() != null && !owner.getUtilityBillUrl().isEmpty()) {
+            String linkText = "<a href=\"" + owner.getUtilityBillUrl() + "\">View Bill</a>";
+            holder.tvUtilityBill.setText(Html.fromHtml("Utility Bill: " + linkText, Html.FROM_HTML_MODE_COMPACT));
+            holder.tvUtilityBill.setMovementMethod(LinkMovementMethod.getInstance());
+            holder.tvUtilityBill.setVisibility(View.VISIBLE);
+        } else {
+            holder.tvUtilityBill.setVisibility(View.GONE);
+        }
+
         // Verification Badge Styling
         if (owner.isVerified()) {
             holder.badgeVerified.setText("VERIFIED");
@@ -139,7 +163,7 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
     }
 
     static class OwnerViewHolder extends RecyclerView.ViewHolder {
-        TextView tvTurfName, tvOwnerId, tvOwnerName, tvOwnerMobile, tvBusinessPhone, tvLocation;
+        TextView tvTurfName, tvOwnerId, tvOwnerName, tvOwnerMobile, tvBusinessPhone, tvLocation, tvMsme, tvUtilityBill;
         TextView badgeVerified, badgeSubscription, tvExpiryDate;
         Button btnApprove, btnReject, btnDelete;
 
@@ -151,6 +175,8 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
             tvOwnerMobile = itemView.findViewById(R.id.tvOwnerMobile);
             tvBusinessPhone = itemView.findViewById(R.id.tvBusinessPhone);
             tvLocation = itemView.findViewById(R.id.tvLocation);
+            tvMsme = itemView.findViewById(R.id.tvMsme);
+            tvUtilityBill = itemView.findViewById(R.id.tvUtilityBill);
             badgeVerified = itemView.findViewById(R.id.badgeVerified);
             badgeSubscription = itemView.findViewById(R.id.badgeSubscription);
             tvExpiryDate = itemView.findViewById(R.id.tvExpiryDate);

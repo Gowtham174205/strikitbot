@@ -1197,6 +1197,8 @@ model BotOwner {
   photoUrls             String
   gst                   String?
   msme                  String?
+  msmeCardUrl           String?
+  utilityBillUrl        String?
   upiId                 String?
   razorpayContactId     String?
   razorpayFundAccountId String?

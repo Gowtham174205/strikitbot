@@ -150,6 +150,10 @@ async def send_developer_verification_alert(owner) -> None:
         logger.info("[Developer Alert] No developer numbers configured.")
         return
 
+    msme_val = owner.msme or "N/A"
+    if owner.msmeCardUrl:
+        msme_val = f"Uploaded Certificate: {owner.msmeCardUrl}"
+
     text = (
         f"🆕 *New Owner Onboarding Request* 🆕\n\n"
         f"• *ID:* {owner.id}\n"
@@ -159,7 +163,8 @@ async def send_developer_verification_alert(owner) -> None:
         f"• *Location:* {owner.location}\n"
         f"• *Photos:* {owner.photoUrls}\n"
         f"• *GST:* {owner.gst or 'N/A'}\n"
-        f"• *MSME:* {owner.msme or 'N/A'}\n\n"
+        f"• *MSME:* {msme_val}\n"
+        f"• *Utility Bill:* {owner.utilityBillUrl or 'N/A'}\n\n"
         f"*Action Commands:*\n"
         f"👉 To approve: reply with `/approve {owner.id}`\n"
         f"👉 To reject: reply with `/reject {owner.id}`\n\n"

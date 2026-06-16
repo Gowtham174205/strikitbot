@@ -11,6 +11,8 @@ public class Owner {
     private String photoUrls;
     private String gst;
     private String msme;
+    private String msmeCardUrl;
+    private String utilityBillUrl;
     private boolean verified;
     private String businessPhone;
     private boolean subscriptionActive;
@@ -41,6 +43,12 @@ public class Owner {
 
     public String getMsme() { return msme; }
     public void setMsme(String msme) { this.msme = msme; }
+
+    public String getMsmeCardUrl() { return msmeCardUrl; }
+    public void setMsmeCardUrl(String msmeCardUrl) { this.msmeCardUrl = msmeCardUrl; }
+
+    public String getUtilityBillUrl() { return utilityBillUrl; }
+    public void setUtilityBillUrl(String utilityBillUrl) { this.utilityBillUrl = utilityBillUrl; }
 
     public boolean isVerified() { return verified; }
     public void setVerified(boolean verified) { this.verified = verified; }

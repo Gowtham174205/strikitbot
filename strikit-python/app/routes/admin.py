@@ -50,6 +50,9 @@ async def list_owners(
             "subscriptionActive": o.subscriptionActive,
             "subscriptionExpiry": o.subscriptionExpiry.isoformat() if o.subscriptionExpiry else None,
             "upiId": o.upiId, "pricePerHourPaise": o.pricePerHourPaise,
+            "msme": o.msme,
+            "msmeCardUrl": o.msmeCardUrl,
+            "utilityBillUrl": o.utilityBillUrl,
             "createdAt": o.createdAt.isoformat() if o.createdAt else None,
         }
         for o in owners
