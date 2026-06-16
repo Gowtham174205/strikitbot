@@ -102,7 +102,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         owner.mobile,
                         f"🎉 *Congratulations {owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n"
                         f"Your turf *{owner.turfName}* has been verified.\n\n"
-                        f"💳 *Subscription Link:* Please pay ₹699.00 to activate:\n{sub_link}\n\n"
+                        f"💳 *Subscription Link:* Please pay ₹699 for 3 Months (All features included) to activate:\n{sub_link}\n\n"
                         f"_Powered by STRIKIT_",
                     )
                 except Exception as e:

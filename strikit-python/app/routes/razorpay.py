@@ -438,17 +438,38 @@ async def _handle_subscription_payment(db: AsyncSession, notes: dict) -> JSONRes
     if not owner:
         return JSONResponse(status_code=200, content={"status": "owner_not_found"})
 
-    # Activate subscription for 30 days
+    # Extract plan from notes
+    plan = notes.get("plan", "TRIAL").upper()
+
+    # Plan details setup
+    if plan == "TRIAL":
+        days = 90
+        plan_desc = "First-Time Onboarding (₹699 for 3 Months)"
+        features_desc = "All Premium Features"
+    elif plan == "BASIC":
+        days = 30
+        plan_desc = "Basic Plan (₹199 per Month)"
+        features_desc = "Basic Bookings Only"
+    elif plan == "PREMIUM":
+        days = 30
+        plan_desc = "Premium Plan (₹399 per Month)"
+        features_desc = "All Premium Features"
+    elif plan == "PREMIUM_3M":
+        days = 90
+        plan_desc = "Premium 3-Month Plan (₹749 for 3 Months)"
+        features_desc = "All Premium Features"
+    else:
+        plan = "TRIAL"
+        days = 90
+        plan_desc = "First-Time Onboarding (₹699 for 3 Months)"
+        features_desc = "All Premium Features"
+
+    # Activate subscription and set expiry
     owner.subscriptionActive = True
-    owner.subscriptionExpiry = datetime(
-        datetime.utcnow().year, datetime.utcnow().month, datetime.utcnow().day
-    ).__class__(
-        datetime.utcnow().year, datetime.utcnow().month + 1 if datetime.utcnow().month < 12 else 1,
-        datetime.utcnow().day,
-    ) if datetime.utcnow().month < 12 else datetime(datetime.utcnow().year + 1, 1, datetime.utcnow().day)
+    owner.subscriptionPlan = plan
 
     from datetime import timedelta
-    owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=30)
+    owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=days)
 
     # Update session to ONBOARDING complete
     session = (
@@ -459,27 +480,28 @@ async def _handle_subscription_payment(db: AsyncSession, notes: dict) -> JSONRes
 
     await db.commit()
 
-    logger.info(f"[Razorpay Webhook] Subscription activated for owner {owner.name}")
+    logger.info(f"[Razorpay Webhook] Subscription activated ({plan}) for owner {owner.name}")
 
     try:
         await whatsapp_service.send_text(
             owner.mobile,
             f"🎉 *Subscription Activated!* 🎉\n\n"
             f"Hello {owner.name}, your STRIKIT subscription for *{owner.turfName}* is now active!\n\n"
-            f"• Subscription Period: 30 days\n"
+            f"• Plan: {plan_desc}\n"
+            f"• Features: {features_desc}\n"
             f"• Expires: {owner.subscriptionExpiry.strftime('%d %b %Y')}\n\n"
             f"Your QR Code-based booking bot is now live for players.\n\n"
             f"_Powered by STRIKIT_",
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"[Razorpay Webhook] WhatsApp notification failed: {e}")
 
     try:
         await telegram_service.send_alert(
-            f"Subscription activated: {owner.name} ({owner.turfName})"
+            f"Subscription activated: {owner.name} ({owner.turfName}) - Plan: {plan}"
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"[Razorpay Webhook] Telegram alert failed: {e}")
 
     return JSONResponse(status_code=200, content={"status": "subscription_activated"})
 

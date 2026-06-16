@@ -85,7 +85,11 @@ async def check_and_send_monthly_report(db: AsyncSession):
 
         # Send individual owner reports
         owners_result = await db.execute(
-            select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
+            select(BotOwner).where(
+                BotOwner.verified == True,
+                BotOwner.subscriptionActive == True,
+                BotOwner.subscriptionPlan != "BASIC",
+            )
         )
         active_owners = owners_result.scalars().all()
 

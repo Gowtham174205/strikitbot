@@ -37,13 +37,16 @@ async def check_subscription_expiry(db: AsyncSession):
 
         for owner in owners_to_remind:
             try:
-                sub_link = payment_service.create_subscription_link(owner.id)
-                await whatsapp_service.send_text(
+                await whatsapp_service.send_buttons(
                     owner.mobile,
                     f"⏰ *STRIKIT Subscription Renewal Reminder* ⏰\n\n"
                     f"Dear {owner.name}, your subscription for *{owner.turfName}* will expire in 3 days.\n\n"
-                    f"🔗 *Payment Link:* {sub_link}\n\n"
-                    f"_Powered by STRIKIT_",
+                    f"Please select a subscription plan below to renew:",
+                    [
+                        {"id": "sub_plan_basic", "title": "₹199 Basic (1 Month)"},
+                        {"id": "sub_plan_premium", "title": "₹399 Premium (1 Month)"},
+                        {"id": "sub_plan_prem3m", "title": "₹749 Premium (3 Month)"},
+                    ]
                 )
                 logger.info(f"[Subscription] 3-day reminder sent to {owner.mobile}")
             except Exception as e:
@@ -63,14 +66,16 @@ async def check_subscription_expiry(db: AsyncSession):
             owner.subscriptionActive = False
 
             try:
-                sub_link = payment_service.create_subscription_link(owner.id)
-                await whatsapp_service.send_text(
+                await whatsapp_service.send_buttons(
                     owner.mobile,
                     f"⚠️ *STRIKIT Subscription Expired* ⚠️\n\n"
                     f"Dear {owner.name}, your subscription for *{owner.turfName}* has expired.\n\n"
-                    f"To keep your booking bot active, please renew: ₹699.00\n"
-                    f"🔗 *Payment Link:* {sub_link}\n\n"
-                    f"_Powered by STRIKIT_",
+                    f"To keep your booking bot active, please select a plan below to renew:",
+                    [
+                        {"id": "sub_plan_basic", "title": "₹199 Basic (1 Month)"},
+                        {"id": "sub_plan_premium", "title": "₹399 Premium (1 Month)"},
+                        {"id": "sub_plan_prem3m", "title": "₹749 Premium (3 Month)"},
+                    ]
                 )
             except Exception as e:
                 logger.error(f"[Subscription] Expiry notification failed for {owner.mobile}: {e}")
@@ -91,14 +96,16 @@ async def check_subscription_expiry(db: AsyncSession):
 
         for owner in inactive_owners:
             try:
-                sub_link = payment_service.create_subscription_link(owner.id)
-                await whatsapp_service.send_text(
+                await whatsapp_service.send_buttons(
                     owner.mobile,
                     f"👋 *We miss you, {owner.name}!*\n\n"
                     f"Your turf *{owner.turfName}* hasn't been active on STRIKIT for a while.\n\n"
-                    f"Renew your subscription to start receiving bookings again:\n"
-                    f"🔗 {sub_link}\n\n"
-                    f"_Powered by STRIKIT_",
+                    f"Please choose a plan below to renew and reactivate bookings:",
+                    [
+                        {"id": "sub_plan_basic", "title": "₹199 Basic (1 Month)"},
+                        {"id": "sub_plan_premium", "title": "₹399 Premium (1 Month)"},
+                        {"id": "sub_plan_prem3m", "title": "₹749 Premium (3 Month)"},
+                    ]
                 )
             except Exception:
                 pass

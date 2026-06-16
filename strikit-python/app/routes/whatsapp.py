@@ -131,6 +131,50 @@ async def handle_whatsapp_message(
         await handle_developer_command(phone, text, db)
         return
 
+    # Handle subscription renewal button clicks or upgrade commands
+    if lower in ("sub_plan_basic", "sub_plan_premium", "sub_plan_prem3m") or lower in ("upgrade", "renew", "owner_upgrade", "owner_renew"):
+        owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+        if owner:
+            if lower == "sub_plan_basic":
+                sub_link = payment_service.create_subscription_link(owner.id, 19900, "BASIC")
+                await whatsapp_service.send_text(
+                    phone,
+                    f"💳 *Subscription Payment Link*\n\n"
+                    f"Plan: Basic Plan (₹199 per Month - Basic booking only)\n\n"
+                    f"🔗 *Pay here:* {sub_link}\n\n"
+                    f"Once paid, your bot will be automatically activated.",
+                )
+            elif lower == "sub_plan_premium":
+                sub_link = payment_service.create_subscription_link(owner.id, 39900, "PREMIUM")
+                await whatsapp_service.send_text(
+                    phone,
+                    f"💳 *Subscription Payment Link*\n\n"
+                    f"Plan: Premium Plan (₹399 per Month - All features)\n\n"
+                    f"🔗 *Pay here:* {sub_link}\n\n"
+                    f"Once paid, your bot will be automatically activated.",
+                )
+            elif lower == "sub_plan_prem3m":
+                sub_link = payment_service.create_subscription_link(owner.id, 74900, "PREMIUM_3M")
+                await whatsapp_service.send_text(
+                    phone,
+                    f"💳 *Subscription Payment Link*\n\n"
+                    f"Plan: Premium 3-Month Plan (₹749 for 3 Months - All features)\n\n"
+                    f"🔗 *Pay here:* {sub_link}\n\n"
+                    f"Once paid, your bot will be automatically activated.",
+                )
+            else:
+                # upgrade / renew / owner_upgrade / owner_renew text commands
+                await whatsapp_service.send_buttons(
+                    phone,
+                    f"👋 Hello {owner.name}!\n\nSelect a subscription plan to renew or upgrade *{owner.turfName}*:",
+                    [
+                        {"id": "sub_plan_basic", "title": "₹199 Basic (1M)"},
+                        {"id": "sub_plan_premium", "title": "₹399 Premium (1M)"},
+                        {"id": "sub_plan_prem3m", "title": "₹749 Premium (3M)"},
+                    ]
+                )
+            return
+
     # Centralized routing (single bot number)
     if to == settings.ONBOARDING_NUMBER or to == settings.WHATSAPP_PHONE_NUMBER_ID:
         # If they send 'hi' / 'hello' / 'menu' / '/menu', show role selection
@@ -163,13 +207,25 @@ async def handle_whatsapp_message(
                     return await whatsapp_service.send_text(phone, "⏳ Your turf verification is pending developer approval.")
 
                 if not owner.subscriptionActive:
-                    sub_link = payment_service.create_subscription_link(owner.id)
-                    return await whatsapp_service.send_text(
-                        phone,
-                        f"⚠️ *STRIKIT Subscription Expired* ⚠️\n\n"
-                        f"Dear {owner.name}, your subscription for *{owner.turfName}* has expired.\n\n"
-                        f"🔗 *Renew:* {sub_link}\n\n_Powered by STRIKIT_",
-                    )
+                    if owner.subscriptionExpiry is None:
+                        sub_link = payment_service.create_subscription_link(owner.id, 69900, "TRIAL")
+                        return await whatsapp_service.send_text(
+                            phone,
+                            f"💳 Please complete your onboarding subscription payment to activate (₹699 for 3 Months):\n{sub_link}\n\n_Powered by STRIKIT_",
+                        )
+                    else:
+                        await whatsapp_service.send_buttons(
+                            phone,
+                            f"⚠️ *STRIKIT Subscription Expired* ⚠️\n\n"
+                            f"Dear {owner.name}, your subscription for *{owner.turfName}* has expired.\n\n"
+                            f"Please select a renewal plan below:",
+                            [
+                                {"id": "sub_plan_basic", "title": "₹199 Basic (1 Month)"},
+                                {"id": "sub_plan_premium", "title": "₹399 Premium (1 Month)"},
+                                {"id": "sub_plan_prem3m", "title": "₹749 Premium (3 Month)"},
+                            ]
+                        )
+                        return
 
                 # Route to owner dashboard
                 await update_session(phone, "OWNER_START", {}, db, role="OWNER")
@@ -200,6 +256,33 @@ async def handle_whatsapp_message(
             if session.role == "OWNER":
                 owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
                 if owner:
+                    # Sync subscription status
+                    if owner.subscriptionActive and owner.subscriptionExpiry:
+                        if datetime.utcnow() > owner.subscriptionExpiry:
+                            owner.subscriptionActive = False
+                            await db.commit()
+
+                    if not owner.subscriptionActive:
+                        if owner.subscriptionExpiry is None:
+                            sub_link = payment_service.create_subscription_link(owner.id, 69900, "TRIAL")
+                            return await whatsapp_service.send_text(
+                                phone,
+                                f"💳 Please complete your onboarding subscription payment to activate (₹699 for 3 Months):\n{sub_link}\n\n_Powered by STRIKIT_",
+                            )
+                        else:
+                            await whatsapp_service.send_buttons(
+                                phone,
+                                f"⚠️ *STRIKIT Subscription Expired* ⚠️\n\n"
+                                f"Dear {owner.name}, your subscription for *{owner.turfName}* has expired.\n\n"
+                                f"Please select a renewal plan below:",
+                                [
+                                    {"id": "sub_plan_basic", "title": "₹199 Basic (1 Month)"},
+                                    {"id": "sub_plan_premium", "title": "₹399 Premium (1 Month)"},
+                                    {"id": "sub_plan_prem3m", "title": "₹749 Premium (3 Month)"},
+                                ]
+                            )
+                            return
+
                     return await handle_owner_commands(phone, text, owner, db, media_id, media_type)
 
             # Player flow handles customer sessions
@@ -484,16 +567,47 @@ async def handle_owner_commands(
     """Handle commands from verified, subscribed owners."""
     lower = text.lower().strip()
 
+    # Enforce Basic plan limits
+    if owner.subscriptionPlan == "BASIC":
+        # Get active session
+        session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
+        if session and session.state.startswith("OWNER_") and session.state != "OWNER_START":
+            # Reset session to OWNER_START to prevent getting stuck in setting inputs
+            await db.delete(session)
+            await db.commit()
+
+        # Intercept setting/revenue commands
+        if lower in (
+            "owner_revenue", "/revenue", "revenue",
+            "owner_settings", "/settings", "settings",
+            "set_price", "set_upi", "set_timing", "block_slot"
+        ):
+            await whatsapp_service.send_text(
+                phone,
+                f"⚠️ *Feature Locked* ⚠️\n\n"
+                f"This feature requires a STRIKIT Premium Plan.\n\n"
+                f"To unlock revenue reports, blocking slots, and settings management, please type *upgrade* to choose a premium plan."
+            )
+            return
+
     # Menu
     if lower in ("hi", "hello", "menu", "/menu", "help"):
-        await whatsapp_service.send_buttons(
-            phone,
-            f"👋 Welcome, {owner.name}!\n\n*{owner.turfName}* Owner Dashboard\n\nSelect an option:",
-            [
+        if owner.subscriptionPlan == "BASIC":
+            buttons = [
+                {"id": "owner_bookings", "title": "📋 Today's Bookings"},
+                {"id": "owner_upgrade", "title": "⭐ Upgrade Plan"},
+            ]
+        else:
+            buttons = [
                 {"id": "owner_bookings", "title": "📋 Today's Bookings"},
                 {"id": "owner_revenue", "title": "📊 Revenue Report"},
                 {"id": "owner_settings", "title": "⚙️ Settings"},
-            ],
+            ]
+
+        await whatsapp_service.send_buttons(
+            phone,
+            f"👋 Welcome, {owner.name}!\n\n*{owner.turfName}* Owner Dashboard\n\nSelect an option:",
+            buttons,
         )
         return
 
@@ -1074,7 +1188,7 @@ async def handle_developer_command(phone: str, text: str, db: AsyncSession):
 
     if command == "/approve":
         owner.verified = True
-        sub_link = payment_service.create_subscription_link(owner_id)
+        sub_link = payment_service.create_subscription_link(owner_id, 69900, "TRIAL")
 
         session = (await db.execute(select(BotSession).where(BotSession.phone == owner.mobile))).scalars().first()
         ctx = json.loads(session.context) if session and session.context else {}
@@ -1087,7 +1201,10 @@ async def handle_developer_command(phone: str, text: str, db: AsyncSession):
 
         await whatsapp_service.send_text(
             owner.mobile,
-            f"🎉 *Approved!* Your turf *{owner.turfName}* is verified.\nSubscription link: {sub_link}\n\n_Powered by STRIKIT_",
+            f"🎉 *Approved!* Your turf *{owner.turfName}* is verified.\n\n"
+            f"Please complete your subscription payment to activate your bot:\n"
+            f"🔗 *Subscription Link (₹699 for 3 Months):* {sub_link}\n\n"
+            f"_Powered by STRIKIT_",
         )
         await whatsapp_service.send_text(phone, f"✅ Owner {owner.name} approved.")
 
@@ -1105,10 +1222,21 @@ async def handle_developer_command(phone: str, text: str, db: AsyncSession):
 
     elif command == "/activate":
         from datetime import timedelta
+        plan = "TRIAL"
+        days = 90
+        if len(parts) > 2:
+            p_arg = parts[2].upper()
+            if p_arg in ("BASIC", "PREMIUM", "PREMIUM_3M", "TRIAL"):
+                plan = p_arg
+                if plan in ("TRIAL", "PREMIUM_3M"):
+                    days = 90
+                else:
+                    days = 30
         owner.subscriptionActive = True
-        owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=30)
+        owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=days)
+        owner.subscriptionPlan = plan
         await db.commit()
-        await whatsapp_service.send_text(phone, f"🟢 Owner {owner.name} activated for 30 days.")
+        await whatsapp_service.send_text(phone, f"🟢 Owner {owner.name} activated for {days} days on {plan} plan.")
 
 
 # ══════════════════════════════════════════════════════════════════

@@ -20,37 +20,35 @@ def _get_razorpay():
     return _razorpay_client
 
 
-def create_subscription_link(owner_id: int, amount_paise: int = None) -> str:
+def create_subscription_link(owner_id: int, amount_paise: int = 69900, plan_name: str = "TRIAL") -> str:
     """
-    Create a Razorpay payment link for owner subscription (₹699).
+    Create a Razorpay payment link for owner subscription.
     Amount is in PAISE.
     """
-    if amount_paise is None:
-        amount_paise = settings.SUBSCRIPTION_FEE_PAISE  # 69900
-
     client = _get_razorpay()
     if not client:
-        logger.info(f"[PaymentService] Mock subscription link for owner {owner_id}")
-        return f"http://razorpay.mock/sub/{owner_id}"
+        logger.info(f"[PaymentService] Mock subscription link for owner {owner_id} with plan {plan_name}")
+        return f"http://razorpay.mock/sub/{owner_id}/{plan_name}"
 
     try:
         link = client.payment_link.create({
             "amount": amount_paise,  # Already in paise!
             "currency": "INR",
             "accept_partial": False,
-            "description": f"STRIKIT Turf Booking Bot Subscription (Owner ID: {owner_id})",
+            "description": f"STRIKIT Turf Booking Bot {plan_name} Subscription (Owner ID: {owner_id})",
             "notify": {"sms": False, "email": False},
             "reminder_enable": False,
             "notes": {
                 "type": "subscription",
                 "ownerId": str(owner_id),
+                "plan": plan_name,
             },
             "callback_url": "https://bot.strikit.in/payment-success",
             "callback_method": "get",
         })
         return link["short_url"]
     except Exception as e:
-        logger.error(f"[PaymentService] Subscription link error for owner {owner_id}: {e}")
+        logger.error(f"[PaymentService] Subscription link error for owner {owner_id} and plan {plan_name}: {e}")
         raise
 
 

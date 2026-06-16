@@ -1204,6 +1204,7 @@ model BotOwner {
   businessPhone         String?       @unique
   subscriptionActive    Boolean       @default(false)
   subscriptionExpiry    DateTime?
+  subscriptionPlan      String        @default("TRIAL")
   createdAt             DateTime      @default(now())
   openingTime           String        @default("06:00 AM")
   closingTime           String        @default("10:00 PM")

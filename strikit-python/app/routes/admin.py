@@ -87,7 +87,7 @@ async def approve_owner(owner_id: int, db: AsyncSession = Depends(get_db)):
             owner.mobile,
             f"🎉 *Congratulations {owner.name}! Your STRIKIT Registration has been APPROVED!* 🎉\n\n"
             f"Your turf *{owner.turfName}* has been verified.\n\n"
-            f"💳 *Subscription Link:* Please pay ₹699.00 to activate your bot:\n"
+            f"💳 *Subscription Link:* Please pay ₹699 for 3 Months (All features included) to activate your bot:\n"
             f"{sub_link}\n\n"
             f"_Powered by STRIKIT_",
         )
