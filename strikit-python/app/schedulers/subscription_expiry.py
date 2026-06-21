@@ -2,12 +2,12 @@
 Scheduler: Subscription Expiry — Runs hourly.
 1. Send 3-day renewal reminder to owners expiring soon.
 2. Deactivate expired subscriptions and notify owners.
-3. Churn detection: remind inactive owners/players.
+3. Churn detection: remind inactive owners (once only, tracked by churnReminderSentAt).
 """
 import logging
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import BotOwner
@@ -82,18 +82,23 @@ async def check_subscription_expiry(db: AsyncSession):
 
         await db.commit()
 
-        # ── 3. Churn detection: 7-day inactive owners ──
+        # ── 3. Churn detection: 7-day inactive owners (ONE reminder only) ──
         seven_days_ago = now - timedelta(days=7)
         inactive_result = await db.execute(
             select(BotOwner).where(
-                BotOwner.verified == True,
-                BotOwner.subscriptionActive == False,
-                BotOwner.subscriptionExpiry < seven_days_ago,
-                BotOwner.subscriptionExpiry != None,
+                and_(
+                    BotOwner.verified == True,
+                    BotOwner.subscriptionActive == False,
+                    BotOwner.subscriptionExpiry < seven_days_ago,
+                    BotOwner.subscriptionExpiry != None,
+                    # Only send to owners who haven't received a churn reminder yet
+                    BotOwner.churnReminderSentAt == None,
+                )
             )
         )
         inactive_owners = inactive_result.scalars().all()
 
+        churn_sent = 0
         for owner in inactive_owners:
             try:
                 await whatsapp_service.send_buttons(
@@ -107,8 +112,15 @@ async def check_subscription_expiry(db: AsyncSession):
                         {"id": "sub_plan_prem3m", "title": "₹749 Premium (3 Month)"},
                     ]
                 )
+                # Mark churn reminder as sent — will NOT be sent again
+                owner.churnReminderSentAt = now
+                churn_sent += 1
             except Exception:
                 pass
+
+        if churn_sent > 0:
+            await db.commit()
+            logger.info(f"[Subscription] Sent {churn_sent} churn reminders")
 
     except Exception as e:
         logger.error(f"[Subscription Scheduler] Error: {e}")

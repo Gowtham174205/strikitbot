@@ -146,6 +146,11 @@ async def test_complete_e2e_flow(client, db_session):
     # 1.8 Skip MSME
     resp = await send_whatsapp_msg(client, owner_phone, "SKIP", onboarding_bot)
     assert resp.status_code == 200
+    assert_wa_message_contains(owner_phone, "Utility Bill")
+
+    # 1.8.5 Skip Utility Bill
+    resp = await send_whatsapp_msg(client, owner_phone, "SKIP", onboarding_bot)
+    assert resp.status_code == 200
     assert_wa_message_contains(owner_phone, "UPI ID")
 
     # 1.9 Send UPI ID (Registration complete)

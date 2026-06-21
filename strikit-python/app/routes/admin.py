@@ -191,31 +191,32 @@ async def delete_owner(owner_id: int, db: AsyncSession = Depends(get_db)):
 @router.get("/stats")
 async def get_admin_stats(db: AsyncSession = Depends(get_db)):
     """Retrieve administrative metrics and stats."""
+    from sqlalchemy import func
+    
     # Active Turfs (verified = True, subscriptionActive = True)
-    active_res = await db.execute(
-        select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
-    )
-    active_turfs = len(active_res.scalars().all())
+    active_turfs = (await db.execute(
+        select(func.count()).select_from(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
+    )).scalar() or 0
     
     # Pending Verifications (verified = False)
-    pending_res = await db.execute(
-        select(BotOwner).where(BotOwner.verified == False)
-    )
-    pending_verifications = len(pending_res.scalars().all())
+    pending_verifications = (await db.execute(
+        select(func.count()).select_from(BotOwner).where(BotOwner.verified == False)
+    )).scalar() or 0
     
     # Failed Payouts
-    failed_res = await db.execute(
-        select(BotPayoutLedger).where(BotPayoutLedger.status == "FAILED")
-    )
-    failed_payouts = len(failed_res.scalars().all())
+    failed_payouts = (await db.execute(
+        select(func.count()).select_from(BotPayoutLedger).where(BotPayoutLedger.status == "FAILED")
+    )).scalar() or 0
 
     # Total Bookings
-    bookings_res = await db.execute(select(BotBooking))
-    total_bookings = len(bookings_res.scalars().all())
+    total_bookings = (await db.execute(
+        select(func.count()).select_from(BotBooking)
+    )).scalar() or 0
 
     # Total Revenue (sum of totalPaidPaise for bookings)
-    revenue_res = await db.execute(select(BotBooking.totalPaidPaise))
-    total_revenue_paise = sum(revenue_res.scalars().all()) or 0
+    total_revenue_paise = (await db.execute(
+        select(func.sum(BotBooking.totalPaidPaise))
+    )).scalar() or 0
 
     return {
         "activeTurfs": active_turfs,

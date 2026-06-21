@@ -718,9 +718,11 @@ async def handle_owner_commands(
         try:
             reports_dir = os.path.join(os.getcwd(), "reports")
             pdf_path = generate_revenue_report(owner, bookings, reports_dir)
+            import os
+            base_url = settings.BASE_URL if hasattr(settings, 'BASE_URL') and settings.BASE_URL else 'https://bot.strikit.in'
             await whatsapp_service.send_document(
                 phone,
-                f"https://bot.strikit.in/reports/{os.path.basename(pdf_path)}",
+                f"{base_url}/reports/{os.path.basename(pdf_path)}",
                 f"revenue_report_{owner.id}.pdf",
                 "📄 Detailed revenue report attached.",
             )
@@ -767,7 +769,6 @@ async def handle_owner_commands(
                 await whatsapp_service.send_text(phone, "Price must be between ₹100 and ₹50,000.")
                 return
             owner.pricePerHourPaise = new_paise
-            await db.commit()
             await db.delete(session)
             await db.commit()
             await whatsapp_service.send_text(phone, f"✅ Price updated to ₹{amount_service.paise_to_rupees(new_paise)}/hour")
@@ -787,7 +788,6 @@ async def handle_owner_commands(
             return
         owner.upiId = new_upi
         owner.razorpayFundAccountId = None  # Reset cached fund account
-        await db.commit()
         await db.delete(session)
         await db.commit()
         await whatsapp_service.send_text(phone, f"✅ UPI updated to {new_upi}")
@@ -803,7 +803,6 @@ async def handle_owner_commands(
         if len(parts) >= 2:
             owner.openingTime = parts[0].strip()
             owner.closingTime = parts[1].strip()
-            await db.commit()
             await db.delete(session)
             await db.commit()
             await whatsapp_service.send_text(phone, f"✅ Timings updated: {owner.openingTime} - {owner.closingTime}")
@@ -835,7 +834,6 @@ async def handle_owner_commands(
             else:
                 db.add(BotTurfSlot(ownerId=owner.id, date=date_str, timeSlot=time_str, status="BLOCKED", blockedByOwner=True))
 
-            await db.commit()
             await db.delete(session)
             await db.commit()
             await whatsapp_service.send_text(phone, f"🔒 Slot blocked: {date_str} at {time_str}")
@@ -964,6 +962,107 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
     context = json.loads(session.context or "{}") if session else {}
     state = session.state if session else ""
 
+    # ── Join Game Flow States ──
+    if state == "AWAITING_JOIN_DATE":
+        try:
+            datetime.strptime(text.strip(), "%Y-%m-%d")
+            selected_date = text.strip()
+        except ValueError:
+            await whatsapp_service.send_text(phone, "⚠️ Invalid date format. Please enter date as YYYY-MM-DD (e.g. 2026-06-25):")
+            return
+
+        context["joinDate"] = selected_date
+
+        # Find bookings on this date
+        stmt = select(BotBooking).join(BotTurfSlot).where(
+            BotTurfSlot.date == selected_date,
+            BotBooking.paymentStatus == "VERIFIED"
+        )
+        bookings = (await db.execute(stmt)).scalars().all()
+
+        if not bookings:
+            await whatsapp_service.send_text(phone, f"😔 No active games found on {selected_date} to join. Try another date:")
+            return
+
+        rows = []
+        for b in bookings:
+            slot = await db.get(BotTurfSlot, b.slotId)
+            owner = await db.get(BotOwner, slot.ownerId) if slot else None
+            turf_name = owner.turfName if owner else "Unknown Turf"
+            slot_time = slot.timeSlot if slot else "N/A"
+            rows.append({
+                "id": f"join_book_{b.id}",
+                "title": f"{turf_name} | {slot_time}",
+                "description": f"Team: {b.teamName} | Captain: {b.captainName}"
+            })
+
+        sections = [{
+            "title": "Select Game",
+            "rows": rows[:10]
+        }]
+
+        await whatsapp_service.send_list(
+            phone,
+            f"🎮 *Games on {selected_date}*:\n\nSelect a game below to send a join request:",
+            "🎮 Select Game",
+            sections
+        )
+        await update_session(phone, "AWAITING_JOIN_GAME_SELECTION", context, db)
+        return
+
+    if state == "AWAITING_JOIN_GAME_SELECTION":
+        if not text.startswith("join_book_"):
+            await whatsapp_service.send_text(phone, "⚠️ Please select a game from the menu list to join.")
+            return
+
+        booking_id = int(text.replace("join_book_", ""))
+        booking = await db.get(BotBooking, booking_id)
+        if not booking:
+            await whatsapp_service.send_text(phone, "⚠️ Game not found. Please try again.")
+            return
+
+        context["joinBookingId"] = booking_id
+        await whatsapp_service.send_text(phone, "Please enter your *name*:")
+        await update_session(phone, "AWAITING_JOIN_PLAYER_NAME", context, db)
+        return
+
+    if state == "AWAITING_JOIN_PLAYER_NAME":
+        player_name = sanitize_input(text, 100)
+        booking = await db.get(BotBooking, context.get("joinBookingId"))
+        if not booking:
+            await whatsapp_service.send_text(phone, "⚠️ Booking not found. Session expired.")
+            return
+
+        join_req = BotJoinRequest(
+            bookingId=booking.id,
+            playerName=player_name,
+            playerPhone=phone,
+            status="AWAITING_PAYMENT",
+            joiningAmount=settings.PLATFORM_JOIN_FEE_PAISE
+        )
+        db.add(join_req)
+        await db.flush()
+
+        pay_link = payment_service.create_join_request_link(
+            request_id=join_req.id,
+            phone=phone,
+            amount_paise=settings.PLATFORM_JOIN_FEE_PAISE
+        )
+
+        await whatsapp_service.send_text(
+            phone,
+            f"💳 *Join Request Payment* 💳\n\n"
+            f"Hello {player_name}, to send a request to join *{booking.teamName}*'s game, please pay the ₹9 platform fee:\n\n"
+            f"🔗 *Payment Link:* {pay_link}\n\n"
+            f"_Powered by STRIKIT_"
+        )
+
+        session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
+        if session:
+            await db.delete(session)
+        await db.commit()
+        return
+
     # Turf selection
     if text.startswith("select_turf_"):
         owner_id = int(text.replace("select_turf_", ""))
@@ -1020,10 +1119,50 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             await whatsapp_service.send_text(phone, f"Sorry, no available slots for {date}. Please try another date.")
             return
 
-        sections = [{
-            "title": "Available Slots",
-            "rows": [{"id": s, "title": s, "description": "Available"} for s in available[:10]],
-        }]
+        morning_slots = []
+        afternoon_slots = []
+        evening_slots = []
+        night_slots = []
+
+        for s in available:
+            try:
+                dt_time = datetime.strptime(s.strip(), "%I:%M %p").time()
+                hour = dt_time.hour
+                if hour < 12:
+                    morning_slots.append(s)
+                elif hour < 16:
+                    afternoon_slots.append(s)
+                elif hour < 20:
+                    evening_slots.append(s)
+                else:
+                    night_slots.append(s)
+            except Exception:
+                if "AM" in s:
+                    morning_slots.append(s)
+                else:
+                    evening_slots.append(s)
+
+        sections = []
+        if morning_slots:
+            sections.append({
+                "title": "Morning Slots",
+                "rows": [{"id": s, "title": s, "description": "Available"} for s in morning_slots[:10]]
+            })
+        if afternoon_slots:
+            sections.append({
+                "title": "Afternoon Slots",
+                "rows": [{"id": s, "title": s, "description": "Available"} for s in afternoon_slots[:10]]
+            })
+        if evening_slots:
+            sections.append({
+                "title": "Evening Slots",
+                "rows": [{"id": s, "title": s, "description": "Available"} for s in evening_slots[:10]]
+            })
+        if night_slots:
+            sections.append({
+                "title": "Night Slots",
+                "rows": [{"id": s, "title": s, "description": "Available"} for s in night_slots[:10]]
+            })
 
         await whatsapp_service.send_list(
             phone,
@@ -1047,9 +1186,21 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             )
         )).scalars().first()
 
-        if slot and slot.status != "AVAILABLE":
-            await whatsapp_service.send_text(phone, f"Sorry, {time_slot} is already {slot.status.lower()}. Please select another:")
-            return
+        if slot:
+            if slot.status != "AVAILABLE":
+                await whatsapp_service.send_text(phone, f"Sorry, {time_slot} is already {slot.status.lower()}. Please select another:")
+                return
+            slot.status = "RESERVED"
+        else:
+            slot = BotTurfSlot(
+                ownerId=owner_id,
+                date=context["selectedDate"],
+                timeSlot=time_slot,
+                status="RESERVED"
+            )
+            db.add(slot)
+
+        await db.commit()
 
         context["selectedSlot"] = time_slot
         await whatsapp_service.send_text(phone, "Please enter your *Name and Team Name*\n(Format: Name - TeamName, e.g. John - HawksFC):")

@@ -51,6 +51,7 @@ async def check_and_send_monthly_report(db: AsyncSession):
 
         bookings_result = await db.execute(
             select(BotBooking).where(
+                BotBooking.paymentStatus == "VERIFIED",
                 BotBooking.createdAt >= start,
                 BotBooking.createdAt < end,
             )
@@ -71,7 +72,7 @@ async def check_and_send_monthly_report(db: AsyncSession):
         pdf_path = generate_platform_report(bookings, join_requests, reports_dir)
 
         # Send to Telegram
-        booking_fees = len(bookings) * settings.PLATFORM_BOOKING_FEE_PAISE
+        booking_fees = sum(b.platformFeePaise for b in bookings)
         join_fees = len(join_requests) * settings.PLATFORM_JOIN_FEE_PAISE
         total = booking_fees + join_fees
 
@@ -106,6 +107,7 @@ async def check_and_send_monthly_report(db: AsyncSession):
                     owner_bookings_result = await db.execute(
                         select(BotBooking).where(
                             BotBooking.slotId.in_(slot_ids),
+                            BotBooking.paymentStatus == "VERIFIED",
                             BotBooking.createdAt >= start,
                             BotBooking.createdAt < end,
                         )
@@ -116,9 +118,10 @@ async def check_and_send_monthly_report(db: AsyncSession):
 
                 if owner_bookings:
                     owner_pdf = generate_revenue_report(owner, owner_bookings, reports_dir)
+                    base_url = settings.BASE_URL if hasattr(settings, 'BASE_URL') and settings.BASE_URL else 'https://bot.strikit.in'
                     await whatsapp_service.send_document(
                         owner.mobile,
-                        f"https://bot.strikit.in/reports/{os.path.basename(owner_pdf)}",
+                        f"{base_url}/reports/{os.path.basename(owner_pdf)}",
                         f"monthly_report_{target_month_str}.pdf",
                         f"📅 *Monthly Revenue Report for {target_month_str}*\n\n"
                         f"Hello {owner.name}, here is your monthly report for *{owner.turfName}*.\n\n"

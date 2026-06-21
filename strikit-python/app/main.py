@@ -15,13 +15,40 @@ from app.config import settings
 from app.database import init_db, close_db, async_session_factory
 from app.middleware.rate_limiter import limiter, rate_limit_exceeded_handler
 
-# Configure structured logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+# Configure structured logging with rotation
+import os
+from logging.handlers import RotatingFileHandler
+
+os.makedirs("logs", exist_ok=True)
+log_formatter = logging.Formatter(
+    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
 )
+log_level = getattr(logging, settings.LOG_LEVEL.upper(), logging.INFO)
+root_logger = logging.getLogger()
+root_logger.setLevel(log_level)
+
+# Clear existing handlers to prevent double logging
+if root_logger.hasHandlers():
+    root_logger.handlers.clear()
+
+# Console Handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+root_logger.addHandler(console_handler)
+
+# Rotating File Handler
+file_handler = RotatingFileHandler(
+    "logs/server.log",
+    maxBytes=5 * 1024 * 1024,  # 5MB
+    backupCount=5,
+    encoding="utf-8"
+)
+file_handler.setFormatter(log_formatter)
+root_logger.addHandler(file_handler)
+
 logger = logging.getLogger(__name__)
+
 
 
 @asynccontextmanager
@@ -89,6 +116,17 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── CORS Middleware ──
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # ── Rate Limiter ──
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
@@ -151,4 +189,5 @@ async def status():
 # ── Run with: uvicorn app.main:app --host 0.0.0.0 --port 5000 ──
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=settings.PORT, reload=True)
+    reload_dev = settings.NODE_ENV == "development"
+    uvicorn.run("app.main:app", host="0.0.0.0", port=settings.PORT, reload=reload_dev)

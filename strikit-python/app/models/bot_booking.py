@@ -2,7 +2,7 @@
 BotBooking model — HARDENED with paise-only fields and payment/payout status tracking.
 All money stored as integer paise. No Float anywhere.
 """
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -30,6 +30,7 @@ class BotBooking(Base):
     # ── Status Tracking ──
     paymentStatus = Column(String, default="PENDING")     # PENDING | VERIFIED | FAILED | REFUNDED
     payoutStatus = Column(String, default="NOT_STARTED")  # NOT_STARTED | PROCESSING | COMPLETED | FAILED | MANUAL_REVIEW
+    reminderSent = Column(Boolean, default=False)
     confirmedAt = Column(DateTime, nullable=True)
 
     createdAt = Column(DateTime, default=func.now())

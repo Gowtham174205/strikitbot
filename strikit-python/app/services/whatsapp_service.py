@@ -9,7 +9,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-WHATSAPP_API_URL = "https://graph.facebook.com/v19.0"
+WHATSAPP_API_URL = f"https://graph.facebook.com/{settings.WHATSAPP_API_VERSION}"
 
 # ── Mock message store for testing ──
 mock_sent_messages: list[dict] = []

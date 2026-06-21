@@ -45,10 +45,17 @@ class Settings(BaseSettings):
     SUBSCRIPTION_FEE_PAISE: int = 69900       # ₹699
 
     # ── Rate Limiting ──
-    RATE_LIMIT_WHATSAPP: str = "100/minute"
+    RATE_LIMIT_WHATSAPP: str = "500/minute"
     RATE_LIMIT_TELEGRAM: str = "50/minute"
     RATE_LIMIT_RAZORPAY: str = "30/minute"
     RATE_LIMIT_ADMIN: str = "20/minute"
+
+    # ── WhatsApp API ──
+    WHATSAPP_API_VERSION: str = "v21.0"
+
+    # ── Server URLs ──
+    BASE_URL: str = "https://bot.strikit.in"
+    LOG_LEVEL: str = "INFO"
 
     # ── Slot Reservation ──
     SLOT_RESERVATION_MINUTES: int = 15

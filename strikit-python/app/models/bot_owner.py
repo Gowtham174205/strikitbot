@@ -36,6 +36,7 @@ class BotOwner(Base):
     pricePerHourPaise = Column(Integer, default=100000)  # ₹1000 = 100000 paise
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    churnReminderSentAt = Column(DateTime, nullable=True)
 
     # Relationships
     slots = relationship("BotTurfSlot", back_populates="owner", cascade="all, delete-orphan")
