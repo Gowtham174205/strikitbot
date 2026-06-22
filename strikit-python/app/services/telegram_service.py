@@ -236,3 +236,26 @@ async def send_platform_report(pdf_path: str, caption: str) -> dict:
     except Exception as e:
         logger.error(f"[Telegram sendDocument Error] {e}")
         return {"ok": False, "error": str(e)}
+
+
+async def send_cancellation_alert(
+    booking_id: int,
+    owner_name: str,
+    turf_name: str,
+    refund_amount_paise: int,
+    refund_percentage: int,
+    reason: str,
+) -> dict:
+    """Alert admin when a booking is cancelled."""
+    text = (
+        f"⚠️ <b>BOOKING CANCELLED</b>\n\n"
+        f"<b>Booking ID:</b> {booking_id}\n"
+        f"<b>Owner:</b> {_escape_html(owner_name)}\n"
+        f"<b>Turf:</b> {_escape_html(turf_name)}\n"
+        f"<b>Refund Percentage:</b> {refund_percentage}%\n"
+        f"<b>Refund Amount:</b> ₹{paise_to_rupees(refund_amount_paise)}\n"
+        f"<b>Reason:</b> {_escape_html(reason)}\n\n"
+        f"ℹ️ The turf slot has been released back to AVAILABLE status."
+    )
+    return await _send_telegram_request("sendMessage", {"text": text, "parse_mode": "HTML"})
+

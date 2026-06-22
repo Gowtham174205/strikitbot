@@ -20,7 +20,7 @@ from sqlalchemy import select, and_, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.models import BotOwner, BotTurfSlot, BotBooking, BotJoinRequest, BotSession
+from app.models import BotOwner, BotTurfSlot, BotBooking, BotJoinRequest, BotSession, BotPayoutLedger, BotPaymentAuditLog
 from app.services import whatsapp_service, telegram_service, payment_service, amount_service
 from app.services.pdf_generator import generate_revenue_report
 from app.middleware.security import verify_whatsapp_signature, sanitize_input
@@ -854,6 +854,61 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
     lower = text.lower().strip()
     session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
 
+    # ── Cancellation Flow Interceptors ──
+    if text.startswith("cancel_select_"):
+        booking_id = int(text.replace("cancel_select_", ""))
+        booking = await db.get(BotBooking, booking_id)
+        if not booking:
+            await whatsapp_service.send_text(phone, "❌ Booking not found.")
+            return
+
+        sections = [
+            {
+                "title": "Cancellation Reasons",
+                "rows": [
+                    {"id": f"cancel_reason_{booking_id}_plans", "title": "Change of plans", "description": ""},
+                    {"id": f"cancel_reason_{booking_id}_weather", "title": "Weather conditions", "description": ""},
+                    {"id": f"cancel_reason_{booking_id}_injury", "title": "Injured player(s)", "description": ""},
+                    {"id": f"cancel_reason_{booking_id}_wrong", "title": "Booked wrong slot/turf", "description": ""},
+                    {"id": f"cancel_reason_{booking_id}_other", "title": "Other (Specify reason)", "description": "Type your custom reason"},
+                ]
+            }
+        ]
+
+        await whatsapp_service.send_list(
+            phone,
+            "❓ *Please select the reason for cancellation:*\n\nYour feedback helps us improve.",
+            "Select Reason",
+            sections
+        )
+        await update_session(phone, "AWAITING_CANCEL_REASON_SELECTION", {"cancel_booking_id": booking_id}, db)
+        return
+
+    if text.startswith("cancel_reason_"):
+        parts = text.split("_")
+        booking_id = int(parts[2])
+        reason_id = parts[3]
+
+        booking = await db.get(BotBooking, booking_id)
+        if not booking:
+            await whatsapp_service.send_text(phone, "❌ Booking not found.")
+            return
+
+        if reason_id == "other":
+            await whatsapp_service.send_text(phone, "✍️ Please type the reason for cancelling your booking:")
+            await update_session(phone, "AWAITING_CANCEL_REASON", {"cancel_booking_id": booking_id}, db)
+            return
+
+        reason_map = {
+            "plans": "Change of plans",
+            "weather": "Weather conditions",
+            "injury": "Injured player(s)",
+            "wrong": "Booked wrong slot/turf"
+        }
+        reason_text = reason_map.get(reason_id, "Unknown")
+        await process_booking_cancellation(phone, booking, reason_text, db)
+        return
+
     # Player menu / location query
     if not session or lower in ("hi", "hello", "book", "/book", "menu") or session.state == "PLAYER_START":
         await whatsapp_service.send_buttons(
@@ -961,6 +1016,19 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
     # Context
     context = json.loads(session.context or "{}") if session else {}
     state = session.state if session else ""
+
+    # ── Cancellation Custom Reason State ──
+    if state == "AWAITING_CANCEL_REASON":
+        booking_id = context.get("cancel_booking_id")
+        booking = await db.get(BotBooking, booking_id)
+        if not booking:
+            await whatsapp_service.send_text(phone, "❌ Booking not found. Session expired.")
+            await update_session(phone, "PLAYER_START", {}, db)
+            return
+
+        reason_text = text.strip()
+        await process_booking_cancellation(phone, booking, reason_text, db)
+        return
 
     # ── Join Game Flow States ──
     if state == "AWAITING_JOIN_DATE":
@@ -1297,16 +1365,64 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             await whatsapp_service.send_text(phone, "📋 No bookings found. Type *book* to make one!")
             return
 
+        now = datetime.utcnow()
+        cancellable_rows = []
+
         msg = "📋 *Your Recent Bookings*\n\n"
         for b in bookings:
             slot = await db.get(BotTurfSlot, b.slotId)
             owner = await db.get(BotOwner, slot.ownerId) if slot else None
+            status_str = "Confirmed" if b.status != "CANCELLED" else "CANCELLED"
             msg += (
                 f"• *{owner.turfName if owner else 'Unknown'}*\n"
                 f"  Date: {slot.date if slot else 'N/A'} | {slot.timeSlot if slot else 'N/A'}\n"
-                f"  Team: {b.teamName} | Paid: ₹{amount_service.paise_to_rupees(b.totalPaidPaise)}\n\n"
+                f"  Team: {b.teamName} | Paid: ₹{amount_service.paise_to_rupees(b.totalPaidPaise)}\n"
+                f"  Status: {status_str}\n\n"
             )
+
+            # Check if booking can be cancelled (verified, not cancelled, and in the future)
+            if b.paymentStatus == "VERIFIED" and b.status == "CONFIRMED" and slot:
+                try:
+                    slot_date = datetime.strptime(slot.date, "%Y-%m-%d")
+                    start_time_str = slot.timeSlot.split("-")[0].strip()
+                    game_time = None
+                    for fmt in ("%I:%M %p", "%H:%M"):
+                        try:
+                            parsed = datetime.strptime(start_time_str, fmt)
+                            game_time = slot_date.replace(
+                                hour=parsed.hour,
+                                minute=parsed.minute,
+                                second=0,
+                                microsecond=0,
+                            )
+                            break
+                        except ValueError:
+                            continue
+
+                    if game_time and game_time > now:
+                        cancellable_rows.append({
+                            "id": f"cancel_select_{b.id}",
+                            "title": f"{owner.turfName if owner else 'Turf'} - {slot.date}"[:24],
+                            "description": f"{slot.timeSlot} | ₹{amount_service.paise_to_rupees(b.totalPaidPaise)}",
+                        })
+                except Exception as e:
+                    logger.error(f"[MyBookings] Parsing error for slot {slot.id}: {e}")
+
         await whatsapp_service.send_text(phone, msg + "_Powered by STRIKIT_")
+
+        if cancellable_rows:
+            sections = [
+                {
+                    "title": "Cancel a Booking",
+                    "rows": cancellable_rows
+                }
+            ]
+            await whatsapp_service.send_list(
+                phone,
+                "🏟️ *Booking Cancellation*\n\nIf you want to cancel one of your upcoming bookings, select it from the menu list below:",
+                "❌ Cancel Booking",
+                sections
+            )
         return
 
     # Join game flow
@@ -1461,3 +1577,159 @@ def _generate_time_slots(opening: str, closing: str) -> list[str]:
             "09:00 PM", "10:00 PM",
         ]
     return slots
+
+
+async def process_booking_cancellation(phone: str, booking: BotBooking, reason_text: str, db: AsyncSession):
+    """Process cancellation, calculate refund, issue Razorpay refund, release slot, notify player/admin."""
+    try:
+        slot = await db.get(BotTurfSlot, booking.slotId)
+        if not slot:
+            await whatsapp_service.send_text(phone, "❌ Slot details not found for this booking.")
+            return
+
+        owner = await db.get(BotOwner, slot.ownerId)
+        if not owner:
+            await whatsapp_service.send_text(phone, "❌ Turf owner details not found.")
+            return
+
+        # 1. Parse slot date and time
+        slot_date = datetime.strptime(slot.date, "%Y-%m-%d")
+        start_time_str = slot.timeSlot.split("-")[0].strip()
+        game_time = None
+        for fmt in ("%I:%M %p", "%H:%M"):
+            try:
+                parsed = datetime.strptime(start_time_str, fmt)
+                game_time = slot_date.replace(
+                    hour=parsed.hour,
+                    minute=parsed.minute,
+                    second=0,
+                    microsecond=0,
+                )
+                break
+            except ValueError:
+                continue
+
+        now = datetime.utcnow()
+        if not game_time or game_time <= now:
+            await whatsapp_service.send_text(phone, "❌ You cannot cancel a slot that has already started or completed.")
+            await update_session(phone, "PLAYER_START", {}, db)
+            return
+
+        # 2. Calculate refund percentage and amount
+        hours_until_game = (game_time - now).total_seconds() / 3600
+        if hours_until_game > settings.CANCEL_FULL_REFUND_HOURS:
+            refund_percentage = 80
+        elif hours_until_game > settings.CANCEL_PARTIAL_REFUND_HOURS:
+            refund_percentage = 50
+        else:
+            refund_percentage = 0
+
+        refund_amount_paise = int(booking.totalPaidPaise * (refund_percentage / 100.0))
+
+        # 3. Trigger Razorpay refund if amount > 0
+        refund_success = False
+        refund_id = None
+        refund_error = None
+
+        if refund_amount_paise > 0 and booking.razorpayPaymentId:
+            try:
+                refund_res = payment_service.refund_payment(booking.razorpayPaymentId, refund_amount_paise)
+                refund_id = refund_res.get("id", f"rfnd_{booking.razorpayPaymentId}")
+                refund_success = True
+            except Exception as e:
+                refund_error = str(e)
+                logger.error(f"[Cancellation] Razorpay refund failed for booking {booking.id}: {e}")
+
+        # 4. Cancel payout ledger if still pending/failed/manual review
+        payout_ledger_cancelled = False
+        stmt = select(BotPayoutLedger).where(BotPayoutLedger.bookingId == booking.id)
+        ledger = (await db.execute(stmt)).scalars().first()
+        if ledger:
+            if ledger.status in ("PROCESSING", "FAILED", "MANUAL_REVIEW"):
+                ledger.status = "CANCELLED"
+                payout_ledger_cancelled = True
+
+        # 5. Set slot status to AVAILABLE
+        slot.status = "AVAILABLE"
+
+        # 6. Update booking status and cancellationReason
+        booking.status = "CANCELLED"
+        booking.cancellationReason = reason_text
+
+        # Only set paymentStatus to REFUNDED if non-zero refund was processed successfully
+        if refund_success:
+            booking.paymentStatus = "REFUNDED"
+        elif refund_percentage > 0:
+            # Refund was required but failed
+            booking.payoutStatus = "MANUAL_REVIEW"
+
+        # 7. Write audit log entries
+        db.add(BotPaymentAuditLog(
+            bookingId=booking.id,
+            eventType="CANCEL_INITIATED",
+            message=f"Cancelled by player. Reason: {reason_text}. Refund percentage: {refund_percentage}%. Amount: ₹{amount_service.paise_to_rupees(refund_amount_paise)}.",
+        ))
+
+        if refund_success:
+            db.add(BotPaymentAuditLog(
+                bookingId=booking.id,
+                eventType="REFUND_COMPLETED",
+                message=f"Refund processed successfully. Refund ID: {refund_id}",
+            ))
+        elif refund_error:
+            db.add(BotPaymentAuditLog(
+                bookingId=booking.id,
+                eventType="REFUND_FAILED",
+                message=f"Refund failed: {refund_error}",
+            ))
+
+        await db.commit()
+
+        # 8. Send telegram alert to admins
+        await telegram_service.send_cancellation_alert(
+            booking_id=booking.id,
+            owner_name=owner.name,
+            turf_name=owner.turfName,
+            refund_amount_paise=refund_amount_paise,
+            refund_percentage=refund_percentage,
+            reason=reason_text,
+        )
+
+        if refund_percentage > 0 and not refund_success:
+            await telegram_service.send_manual_review_alert(
+                booking_id=booking.id,
+                reason=f"Refund failed: {refund_error}",
+                owner_name=owner.name,
+                turf_name=owner.turfName,
+            )
+
+        # 9. Send WhatsApp confirmation to user
+        refund_msg = ""
+        if refund_percentage > 0:
+            if refund_success:
+                refund_msg = f"• Refund Amount: *₹{amount_service.paise_to_rupees(refund_amount_paise)} ({refund_percentage}% refund)*\n" \
+                             f"  (Refund has been initiated to your original payment method)\n"
+            else:
+                refund_msg = f"• Refund Amount: *₹{amount_service.paise_to_rupees(refund_amount_paise)} ({refund_percentage}% refund)*\n" \
+                             f"  (⚠️ Refund initiation failed. Our admin will process this manually within 24 hours)\n"
+        else:
+            refund_msg = f"• Refund: *No refund (cancelled less than 2 hours before game time)*\n"
+
+        await whatsapp_service.send_text(
+            phone,
+            f"✅ *Booking Cancelled Successfully*\n\n"
+            f"Your booking has been cancelled.\n\n"
+            f"• Turf: *{owner.turfName}*\n"
+            f"• Date: {slot.date} | {slot.timeSlot}\n"
+            f"• Reason: {reason_text}\n"
+            f"{refund_msg}\n"
+            f"_Powered by STRIKIT_"
+        )
+
+        # 10. Reset player session context
+        await update_session(phone, "PLAYER_START", {}, db)
+
+    except Exception as e:
+        logger.error(f"[Cancellation] Error during process_booking_cancellation: {e}")
+        await whatsapp_service.send_text(phone, "❌ Something went wrong while cancelling your booking. Please try again.")
+

@@ -141,7 +141,7 @@ After=network.target network-online.target
 Wants=network-online.target
 
 [Service]
-Type=notify
+Type=simple
 User=${APP_USER}
 Group=${APP_USER}
 WorkingDirectory=${PYTHON_DIR}
@@ -159,7 +159,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=${PYTHON_DIR}/logs
+ReadWritePaths=${PYTHON_DIR}
 
 # Logging
 StandardOutput=journal

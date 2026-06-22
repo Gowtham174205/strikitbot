@@ -143,3 +143,22 @@ def create_join_request_link(
     except Exception as e:
         logger.error(f"[PaymentService] Join request link error: {e}")
         raise
+
+
+def refund_payment(payment_id: str, amount_paise: int) -> dict:
+    """Issue a refund via Razorpay. Returns the refund entity or mock response."""
+    client = _get_razorpay()
+    if not client:
+        logger.info(f"[PaymentService] Mock refund for payment {payment_id} of amount {amount_paise} paise")
+        return {"id": f"rfnd_mock_{payment_id}", "status": "processed", "amount": amount_paise}
+
+    try:
+        # standard Razorpay SDK refund method
+        refund = client.refund.create({
+            "payment_id": payment_id,
+            "amount": amount_paise
+        })
+        return refund
+    except Exception as e:
+        logger.error(f"[PaymentService] Refund error for payment {payment_id}: {e}")
+        raise

@@ -32,6 +32,8 @@ class BotBooking(Base):
     payoutStatus = Column(String, default="NOT_STARTED")  # NOT_STARTED | PROCESSING | COMPLETED | FAILED | MANUAL_REVIEW
     reminderSent = Column(Boolean, default=False)
     confirmedAt = Column(DateTime, nullable=True)
+    status = Column(String, default="CONFIRMED")          # CONFIRMED | CANCELLED
+    cancellationReason = Column(String, nullable=True)
 
     createdAt = Column(DateTime, default=func.now())
 
