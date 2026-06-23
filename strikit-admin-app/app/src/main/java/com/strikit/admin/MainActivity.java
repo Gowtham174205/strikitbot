@@ -1,19 +1,30 @@
 package com.strikit.admin;
 
+import android.app.DatePickerDialog;
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
@@ -35,8 +46,15 @@ import com.strikit.admin.model.TelegramWebhookResponse;
 import com.strikit.admin.network.ApiClient;
 import com.strikit.admin.network.ApiService;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
+import java.util.Locale;
+import okhttp3.ResponseBody;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -83,6 +101,19 @@ public class MainActivity extends AppCompatActivity implements
     private Button btnSaveSettings;
     private Button btnSetupTelegramWebhook;
 
+    // TAB 5: CMS & Reports Section
+    private ScrollView layoutCms;
+    private Spinner spinnerReportType;
+    private TextView tvTurfLabel;
+    private AutoCompleteTextView autoCompleteTurf;
+    private TextView tvDateRangeLabel;
+    private LinearLayout layoutDateFields;
+    private EditText etStartDate;
+    private EditText etEndDate;
+    private Button btnClearFilters;
+    private Button btnDownloadReport;
+    private List<Owner> allOwnersList = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -120,6 +151,60 @@ public class MainActivity extends AppCompatActivity implements
         etSettingsKey = findViewById(R.id.etSettingsKey);
         btnSaveSettings = findViewById(R.id.btnSaveSettings);
         btnSetupTelegramWebhook = findViewById(R.id.btnSetupTelegramWebhook);
+
+        // Bind TAB 5: CMS & Reports
+        layoutCms = findViewById(R.id.layoutCms);
+        spinnerReportType = findViewById(R.id.spinnerReportType);
+        tvTurfLabel = findViewById(R.id.tvTurfLabel);
+        autoCompleteTurf = findViewById(R.id.autoCompleteTurf);
+        tvDateRangeLabel = findViewById(R.id.tvDateRangeLabel);
+        layoutDateFields = findViewById(R.id.layoutDateFields);
+        etStartDate = findViewById(R.id.etStartDate);
+        etEndDate = findViewById(R.id.etEndDate);
+        btnClearFilters = findViewById(R.id.btnClearFilters);
+        btnDownloadReport = findViewById(R.id.btnDownloadReport);
+
+        // Populate Report Types spinner
+        ArrayAdapter<String> reportTypeAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, new String[]{"Turf Details", "Bookings & Slots", "Booking Users"});
+        reportTypeAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerReportType.setAdapter(reportTypeAdapter);
+
+        // Show/hide filters dynamically depending on selected report type
+        spinnerReportType.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                if (position == 0) { // Turf Details
+                    tvDateRangeLabel.setVisibility(View.GONE);
+                    layoutDateFields.setVisibility(View.GONE);
+                    tvTurfLabel.setText("Filter by Turf Name (Search Keyword)");
+                    autoCompleteTurf.setHint("Type search keyword...");
+                } else {
+                    tvDateRangeLabel.setVisibility(View.VISIBLE);
+                    layoutDateFields.setVisibility(View.VISIBLE);
+                    tvTurfLabel.setText("Filter by Turf (Optional)");
+                    autoCompleteTurf.setHint("Select Turf (All if empty)...");
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+
+        // Set up Date Picker clicks
+        etStartDate.setOnClickListener(v -> showDatePicker(etStartDate));
+        etEndDate.setOnClickListener(v -> showDatePicker(etEndDate));
+
+        // Set up Clear Filters button
+        btnClearFilters.setOnClickListener(v -> {
+            etStartDate.setText("");
+            etEndDate.setText("");
+            autoCompleteTurf.setText("");
+            spinnerReportType.setSelection(0);
+        });
+
+        // Set up Download button click
+        btnDownloadReport.setOnClickListener(v -> triggerReportDownload());
 
         // Initialize API Service
         apiService = ApiClient.getApiService(this);
@@ -206,6 +291,10 @@ public class MainActivity extends AppCompatActivity implements
                 showTab(3);
                 syncSettingsFields();
                 return true;
+            } else if (itemId == R.id.nav_cms) {
+                showTab(5);
+                fetchOwnersForCms();
+                return true;
             }
             return false;
         });
@@ -232,6 +321,7 @@ public class MainActivity extends AppCompatActivity implements
         layoutPayouts.setVisibility(tabIndex == 2 ? View.VISIBLE : View.GONE);
         layoutTelegram.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
         layoutRefunds.setVisibility(tabIndex == 4 ? View.VISIBLE : View.GONE);
+        layoutCms.setVisibility(tabIndex == 5 ? View.VISIBLE : View.GONE);
         tvEmptyState.setVisibility(View.GONE);
     }
 
@@ -630,5 +720,155 @@ public class MainActivity extends AppCompatActivity implements
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void fetchOwnersForCms() {
+        apiService.getOwners("").enqueue(new Callback<List<Owner>>() {
+            @Override
+            public void onResponse(Call<List<Owner>> call, Response<List<Owner>> response) {
+                if (response.isSuccessful() && response.body() != null) {
+                    allOwnersList = response.body();
+                    List<String> turfNames = new ArrayList<>();
+                    for (Owner o : allOwnersList) {
+                        turfNames.add(o.getTurfName() + " (" + o.getName() + ")");
+                    }
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                        MainActivity.this, android.R.layout.simple_dropdown_item_1line, turfNames);
+                    autoCompleteTurf.setAdapter(adapter);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<Owner>> call, Throwable t) {
+                // Fail silently
+            }
+        });
+    }
+
+    private void showDatePicker(EditText editText) {
+        Calendar calendar = Calendar.getInstance();
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+            this,
+            (view, selectedYear, selectedMonth, selectedDay) -> {
+                String formattedDate = String.format(Locale.US, "%04d-%02d-%02d", selectedYear, selectedMonth + 1, selectedDay);
+                editText.setText(formattedDate);
+            },
+            year, month, day
+        );
+        datePickerDialog.show();
+    }
+
+    private void triggerReportDownload() {
+        int position = spinnerReportType.getSelectedItemPosition();
+        String turfInput = autoCompleteTurf.getText().toString().trim();
+        Integer turfId = null;
+
+        if (!turfInput.isEmpty()) {
+            for (Owner o : allOwnersList) {
+                String optionText = o.getTurfName() + " (" + o.getName() + ")";
+                if (optionText.equalsIgnoreCase(turfInput) || o.getTurfName().equalsIgnoreCase(turfInput)) {
+                    turfId = o.getId();
+                    break;
+                }
+            }
+        }
+
+        Call<ResponseBody> call;
+        String filename;
+
+        if (position == 0) {
+            call = apiService.downloadTurfsReport(turfInput.isEmpty() ? null : turfInput);
+            filename = "turfs_report_" + System.currentTimeMillis() + ".pdf";
+        } else if (position == 1) {
+            String startStr = etStartDate.getText().toString().trim();
+            String endStr = etEndDate.getText().toString().trim();
+            call = apiService.downloadBookingsReport(
+                startStr.isEmpty() ? null : startStr,
+                endStr.isEmpty() ? null : endStr,
+                turfId
+            );
+            filename = "bookings_report_" + System.currentTimeMillis() + ".pdf";
+        } else {
+            String startStr = etStartDate.getText().toString().trim();
+            String endStr = etEndDate.getText().toString().trim();
+            call = apiService.downloadUsersReport(
+                startStr.isEmpty() ? null : startStr,
+                endStr.isEmpty() ? null : endStr,
+                turfId
+            );
+            filename = "users_report_" + System.currentTimeMillis() + ".pdf";
+        }
+
+        loader.setVisibility(View.VISIBLE);
+        String finalFilename = filename;
+        call.enqueue(new Callback<ResponseBody>() {
+            @Override
+            public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
+                loader.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    saveFileToDownloads(response.body(), finalFilename);
+                } else {
+                    Toast.makeText(MainActivity.this, "Failed to download report. Code: " + response.code(), Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                loader.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this, "Download failed: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    private void saveFileToDownloads(ResponseBody body, String filename) {
+        if (body == null) {
+            Toast.makeText(this, "Empty response body", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        try {
+            ContentResolver resolver = getContentResolver();
+            Uri fileUri;
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContentValues contentValues = new ContentValues();
+                contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
+                contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
+                contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+
+                fileUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues);
+            } else {
+                File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                File file = new File(downloadDir, filename);
+                fileUri = Uri.fromFile(file);
+            }
+
+            if (fileUri != null) {
+                try (InputStream inputStream = body.byteStream();
+                     OutputStream outputStream = resolver.openOutputStream(fileUri)) {
+
+                    if (outputStream == null) {
+                        throw new IOException("Failed to open output stream");
+                    }
+
+                    byte[] buffer = new byte[4096];
+                    int read;
+                    while ((read = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, read);
+                    }
+                    outputStream.flush();
+
+                    Toast.makeText(this, "Report downloaded to Downloads folder:\n" + filename, Toast.LENGTH_LONG).show();
+                }
+            } else {
+                Toast.makeText(this, "Failed to create file entry in MediaStore", Toast.LENGTH_SHORT).show();
+            }
+        } catch (IOException e) {
+            Toast.makeText(this, "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 }

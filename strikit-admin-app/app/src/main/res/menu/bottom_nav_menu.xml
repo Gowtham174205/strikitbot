@@ -16,4 +16,8 @@
         android:id="@+id/nav_telegram"
         android:icon="@drawable/ic_webhooks"
         android:title="Telegram" />
+    <item
+        android:id="@+id/nav_cms"
+        android:icon="@drawable/ic_cms"
+        android:title="CMS" />
 </menu>

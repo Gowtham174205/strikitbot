@@ -807,3 +807,169 @@ def generate_refund_invoice(booking, refund_amount_paise: int, refund_percentage
 
     doc.build(story, canvasmaker=NumberedCanvas)
     return filepath
+
+
+def generate_turfs_pdf(owners: list, output_dir: str) -> str:
+    """Generate consolidated Turf Details Report PDF."""
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"turfs_report_{int(datetime.utcnow().timestamp())}.pdf"
+    filepath = os.path.join(output_dir, filename)
+
+    doc = SimpleDocTemplate(filepath, pagesize=LETTER, leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=60)
+    story = []
+
+    story.append(create_header_grid("Turfs & Owners Report", "Generated At", datetime.utcnow().strftime("%Y-%m-%d %H:%M")))
+    story.append(Spacer(1, 15))
+
+    # KPIs
+    active_count = sum(1 for o in owners if o.subscriptionActive)
+    verified_count = sum(1 for o in owners if o.verified)
+    kpis = [
+        {"label": "Total Registered", "value": str(len(owners))},
+        {"label": "Active Subscriptions", "value": str(active_count)},
+        {"label": "Verified Turfs", "value": str(verified_count)}
+    ]
+    story.append(create_kpi_cards(kpis))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Turfs and Owners Details List", ParagraphStyle("TurfsTitle", fontName=FONT_BOLD, fontSize=9.5, leading=12, textColor=colors.HexColor("#0F172A"))))
+    story.append(Spacer(1, 8))
+
+    headers = ["Turf Name", "Owner Name", "Mobile", "Location", "Price/Hr", "Status"]
+    col_widths = [120, 100, 90, 100, 60, 62]
+
+    rows = []
+    cell_style = ParagraphStyle("PlatCell", fontName=FONT_REGULAR, fontSize=8, leading=10, textColor=colors.HexColor("#334155"))
+    cell_style_bold = ParagraphStyle("PlatCellBold", fontName=FONT_BOLD, fontSize=8, leading=10, textColor=colors.HexColor("#0F172A"))
+
+    for o in owners:
+        status_str = "Active & Verified" if o.subscriptionActive and o.verified else "Active" if o.subscriptionActive else "Inactive"
+        from app.services.amount_service import paise_to_rupees
+        rows.append([
+            Paragraph(o.turfName, cell_style_bold),
+            Paragraph(o.name, cell_style),
+            Paragraph(o.mobile, cell_style),
+            Paragraph(o.location, cell_style),
+            Paragraph(f"₹{paise_to_rupees(o.pricePerHourPaise)}", cell_style),
+            Paragraph(status_str, cell_style_bold)
+        ])
+
+    if not rows:
+        rows.append([Paragraph("No turf records found.", cell_style), "", "", "", "", ""])
+
+    story.append(make_invoice_table(headers, rows, col_widths))
+    doc.build(story, canvasmaker=NumberedCanvas)
+    return filepath
+
+
+def generate_bookings_pdf(bookings: list, output_dir: str) -> str:
+    """Generate consolidated Bookings & Slots Report PDF."""
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"bookings_report_{int(datetime.utcnow().timestamp())}.pdf"
+    filepath = os.path.join(output_dir, filename)
+
+    doc = SimpleDocTemplate(filepath, pagesize=LETTER, leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=60)
+    story = []
+
+    story.append(create_header_grid("Bookings & Slots Report", "Generated At", datetime.utcnow().strftime("%Y-%m-%d %H:%M")))
+    story.append(Spacer(1, 15))
+
+    # KPIs
+    from app.services.amount_service import paise_to_rupees
+    total_paid_paise = sum(b.totalPaidPaise for b in bookings if b.paymentStatus == "VERIFIED")
+    verified_count = sum(1 for b in bookings if b.paymentStatus == "VERIFIED")
+    cancelled_count = sum(1 for b in bookings if b.status == "CANCELLED")
+
+    kpis = [
+        {"label": "Total Bookings", "value": str(len(bookings))},
+        {"label": "Verified Payments", "value": str(verified_count)},
+        {"label": "Cancelled Bookings", "value": str(cancelled_count)},
+        {"label": "Total Revenue", "value": f"₹{paise_to_rupees(total_paid_paise)}", "highlight": True}
+    ]
+    story.append(create_kpi_cards(kpis))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Bookings List", ParagraphStyle("BookingsTitle", fontName=FONT_BOLD, fontSize=9.5, leading=12, textColor=colors.HexColor("#0F172A"))))
+    story.append(Spacer(1, 8))
+
+    headers = ["Turf Name", "Date/Time", "Team Details", "Paid Amount", "Status"]
+    col_widths = [132, 110, 140, 75, 75]
+
+    rows = []
+    cell_style = ParagraphStyle("PlatCell", fontName=FONT_REGULAR, fontSize=8, leading=10, textColor=colors.HexColor("#334155"))
+    cell_style_bold = ParagraphStyle("PlatCellBold", fontName=FONT_BOLD, fontSize=8, leading=10, textColor=colors.HexColor("#0F172A"))
+
+    for b in bookings:
+        slot = getattr(b, "slot", None)
+        turf_name = getattr(slot.owner, "turfName", "Unknown Turf") if slot and getattr(slot, "owner", None) else "Unknown Turf"
+        slot_str = f"{getattr(slot, 'date', 'N/A')} @ {getattr(slot, 'timeSlot', 'N/A')}"
+        team_str = f"Team: {b.teamName}\nCaptain: {b.captainName} ({b.captainPhone})"
+        status_str = f"Booking: {b.status}\nPay: {b.paymentStatus}"
+
+        rows.append([
+            Paragraph(turf_name, cell_style_bold),
+            Paragraph(slot_str, cell_style),
+            Paragraph(team_str.replace('\n', '<br/>'), cell_style),
+            Paragraph(f"₹{paise_to_rupees(b.totalPaidPaise)}", cell_style),
+            Paragraph(status_str.replace('\n', '<br/>'), cell_style_bold)
+        ])
+
+    if not rows:
+        rows.append([Paragraph("No bookings found.", cell_style), "", "", "", ""])
+
+    story.append(make_invoice_table(headers, rows, col_widths))
+    doc.build(story, canvasmaker=NumberedCanvas)
+    return filepath
+
+
+def generate_users_pdf(users_data: list, output_dir: str) -> str:
+    """Generate consolidated Booking User Details Report PDF."""
+    os.makedirs(output_dir, exist_ok=True)
+    filename = f"users_report_{int(datetime.utcnow().timestamp())}.pdf"
+    filepath = os.path.join(output_dir, filename)
+
+    doc = SimpleDocTemplate(filepath, pagesize=LETTER, leftMargin=40, rightMargin=40, topMargin=40, bottomMargin=60)
+    story = []
+
+    story.append(create_header_grid("Booking User Details Report", "Generated At", datetime.utcnow().strftime("%Y-%m-%d %H:%M")))
+    story.append(Spacer(1, 15))
+
+    # KPIs
+    from app.services.amount_service import paise_to_rupees
+    total_users = len(users_data)
+    total_bookings = sum(u["bookings_count"] for u in users_data)
+    total_spent_paise = sum(u["total_paid_paise"] for u in users_data)
+
+    kpis = [
+        {"label": "Total Unique Players", "value": str(total_users)},
+        {"label": "Total Verified Bookings", "value": str(total_bookings)},
+        {"label": "Total Spent", "value": f"₹{paise_to_rupees(total_spent_paise)}", "highlight": True}
+    ]
+    story.append(create_kpi_cards(kpis))
+    story.append(Spacer(1, 20))
+
+    story.append(Paragraph("Booking Player Metrics List", ParagraphStyle("PlayersTitle", fontName=FONT_BOLD, fontSize=9.5, leading=12, textColor=colors.HexColor("#0F172A"))))
+    story.append(Spacer(1, 8))
+
+    headers = ["Mobile", "Captain Name", "Last Team Name", "Total Bookings", "Total Spent"]
+    col_widths = [100, 120, 130, 92, 90]
+
+    rows = []
+    cell_style = ParagraphStyle("PlatCell", fontName=FONT_REGULAR, fontSize=8, leading=10, textColor=colors.HexColor("#334155"))
+    cell_style_bold = ParagraphStyle("PlatCellBold", fontName=FONT_BOLD, fontSize=8, leading=10, textColor=colors.HexColor("#0F172A"))
+
+    for u in users_data:
+        rows.append([
+            Paragraph(u["phone"], cell_style_bold),
+            Paragraph(u["name"], cell_style),
+            Paragraph(u["team"], cell_style),
+            Paragraph(str(u["bookings_count"]), cell_style),
+            Paragraph(f"₹{paise_to_rupees(u['total_paid_paise'])}", cell_style_bold)
+        ])
+
+    if not rows:
+        rows.append([Paragraph("No players found.", cell_style), "", "", "", ""])
+
+    story.append(make_invoice_table(headers, rows, col_widths))
+    doc.build(story, canvasmaker=NumberedCanvas)
+    return filepath

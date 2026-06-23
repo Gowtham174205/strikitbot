@@ -6,6 +6,7 @@ import com.strikit.admin.model.Payout;
 import com.strikit.admin.model.PayoutRetryResponse;
 import com.strikit.admin.model.TelegramWebhookResponse;
 import java.util.List;
+import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.DELETE;
 import retrofit2.http.GET;
@@ -46,4 +47,21 @@ public interface ApiService {
 
     @POST("refund-requests/{id}/reject")
     Call<Void> rejectRefundRequest(@Path("id") int id);
+
+    @GET("reports/turfs")
+    Call<ResponseBody> downloadTurfsReport(@Query("search") String search);
+
+    @GET("reports/bookings")
+    Call<ResponseBody> downloadBookingsReport(
+        @Query("startDate") String startDate,
+        @Query("endDate") String endDate,
+        @Query("turfId") Integer turfId
+    );
+
+    @GET("reports/users")
+    Call<ResponseBody> downloadUsersReport(
+        @Query("startDate") String startDate,
+        @Query("endDate") String endDate,
+        @Query("turfId") Integer turfId
+    );
 }

@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from sqlalchemy import select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -520,3 +521,120 @@ async def setup_telegram_webhook(request: Request):
             json={"url": webhook_url, "secret_token": secret},
         )
         return {"message": "Webhook registered", "telegramResponse": resp.json(), "registeredUrl": webhook_url}
+
+
+# ══════════════════════════════════════════════════════════════════
+# CMS PDF REPORTS (NEW)
+# ══════════════════════════════════════════════════════════════════
+
+@router.get("/reports/turfs")
+async def download_turfs_report(
+    search: str = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generates and streams a PDF containing turf details list."""
+    import os
+    from app.services.pdf_generator import generate_turfs_pdf
+
+    query = select(BotOwner).order_by(desc(BotOwner.createdAt))
+    if search:
+        search = search.strip()
+        query = query.where(
+            BotOwner.name.ilike(f"%{search}%")
+            | BotOwner.mobile.ilike(f"%{search}%")
+            | BotOwner.turfName.ilike(f"%{search}%")
+        )
+    result = await db.execute(query)
+    owners = result.scalars().all()
+
+    # Store report temporarily in workspace temp folder
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    tmp_dir = os.path.join(base_dir, "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    filepath = generate_turfs_pdf(owners, tmp_dir)
+    return FileResponse(filepath, media_type="application/pdf", filename=os.path.basename(filepath))
+
+
+@router.get("/reports/bookings")
+async def download_bookings_report(
+    startDate: str = Query(None),
+    endDate: str = Query(None),
+    turfId: int = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generates and streams a PDF containing bookings/slots list within date range."""
+    import os
+    from app.services.pdf_generator import generate_bookings_pdf
+
+    # Join with BotTurfSlot to get date and owner ID
+    query = select(BotBooking).join(BotBooking.slot).options(
+        selectinload(BotBooking.slot).selectinload(BotTurfSlot.owner)
+    ).order_by(desc(BotTurfSlot.date))
+
+    if turfId:
+        query = query.where(BotTurfSlot.ownerId == turfId)
+    if startDate:
+        query = query.where(BotTurfSlot.date >= startDate)
+    if endDate:
+        query = query.where(BotTurfSlot.date <= endDate)
+
+    result = await db.execute(query)
+    bookings = result.scalars().all()
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    tmp_dir = os.path.join(base_dir, "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    filepath = generate_bookings_pdf(bookings, tmp_dir)
+    return FileResponse(filepath, media_type="application/pdf", filename=os.path.basename(filepath))
+
+
+@router.get("/reports/users")
+async def download_users_report(
+    startDate: str = Query(None),
+    endDate: str = Query(None),
+    turfId: int = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generates and streams a PDF containing booking user details list."""
+    import os
+    from app.services.pdf_generator import generate_users_pdf
+
+    query = select(BotBooking).join(BotBooking.slot).options(
+        selectinload(BotBooking.slot).selectinload(BotTurfSlot.owner)
+    ).where(BotBooking.paymentStatus == "VERIFIED").order_by(desc(BotBooking.createdAt))
+
+    if turfId:
+        query = query.where(BotTurfSlot.ownerId == turfId)
+    if startDate:
+        query = query.where(BotTurfSlot.date >= startDate)
+    if endDate:
+        query = query.where(BotTurfSlot.date <= endDate)
+
+    result = await db.execute(query)
+    bookings = result.scalars().all()
+
+    # Aggregate by captain phone
+    players = {}
+    for b in bookings:
+        phone = b.captainPhone
+        if phone not in players:
+            players[phone] = {
+                "phone": phone,
+                "name": b.captainName,
+                "team": b.teamName,
+                "bookings_count": 0,
+                "total_paid_paise": 0
+            }
+        players[phone]["bookings_count"] += 1
+        players[phone]["total_paid_paise"] += b.totalPaidPaise
+
+    users_data = sorted(players.values(), key=lambda x: x["total_paid_paise"], reverse=True)
+
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    tmp_dir = os.path.join(base_dir, "tmp")
+    os.makedirs(tmp_dir, exist_ok=True)
+
+    filepath = generate_users_pdf(users_data, tmp_dir)
+    return FileResponse(filepath, media_type="application/pdf", filename=os.path.basename(filepath))
