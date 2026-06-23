@@ -1,8 +1,13 @@
 package com.strikit.admin;
 
+import android.Manifest;
 import android.app.DatePickerDialog;
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.content.ContextCompat;
 import android.content.DialogInterface;
 import android.graphics.Color;
 import android.net.Uri;
@@ -63,6 +68,9 @@ import retrofit2.Response;
 public class MainActivity extends AppCompatActivity implements 
         OwnerAdapter.OnOwnerActionListener, 
         PayoutAdapter.OnPayoutActionListener {
+
+    private static final String CHANNEL_ID = "reports_download_channel";
+    private static final int PERMISSION_REQUEST_CODE = 101;
 
     // Common UI
     private ProgressBar loader;
@@ -237,6 +245,10 @@ public class MainActivity extends AppCompatActivity implements
         // Fetch initial list & stats
         fetchOwners("");
         fetchStats();
+
+        // Create notification channel and check permissions
+        createNotificationChannel();
+        checkNotificationPermission();
 
         // Search Input Listener (Debounced search)
         etSearch.addTextChangedListener(new TextWatcher() {
@@ -863,12 +875,56 @@ public class MainActivity extends AppCompatActivity implements
                     outputStream.flush();
 
                     Toast.makeText(this, "Report downloaded to Downloads folder:\n" + filename, Toast.LENGTH_LONG).show();
+                    showDownloadNotification(filename);
                 }
             } else {
                 Toast.makeText(this, "Failed to create file entry in MediaStore", Toast.LENGTH_SHORT).show();
             }
         } catch (IOException e) {
             Toast.makeText(this, "Download failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            CharSequence name = "Report Downloads";
+            String description = "Notifications for downloaded business reports";
+            int importance = android.app.NotificationManager.IMPORTANCE_HIGH; // Heads-up notification
+            android.app.NotificationChannel channel = new android.app.NotificationChannel(CHANNEL_ID, name, importance);
+            channel.setDescription(description);
+            channel.enableLights(true);
+            channel.setLightColor(Color.GREEN);
+            channel.enableVibration(true);
+
+            android.app.NotificationManager notificationManager = getSystemService(android.app.NotificationManager.class);
+            if (notificationManager != null) {
+                notificationManager.createNotificationChannel(channel);
+            }
+        }
+    }
+
+    private void checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{Manifest.permission.POST_NOTIFICATIONS}, PERMISSION_REQUEST_CODE);
+            }
+        }
+    }
+
+    private void showDownloadNotification(String filename) {
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setContentTitle("Report Downloaded Successfully")
+                .setContentText(filename)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setAutoCancel(true);
+
+        android.app.NotificationManager notificationManager = (android.app.NotificationManager) getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+        if (notificationManager != null) {
+            notificationManager.notify((int) System.currentTimeMillis(), builder.build());
         }
     }
 }
