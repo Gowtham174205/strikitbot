@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardBackgroundColor="@color/card_dark"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Header Row: Turf Name & Request Date -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/tvRefundTurfName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/primary_neon"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                tools:text="Camp Nou Turf" />
+
+            <TextView
+                android:id="@+id/tvRefundDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_alignBaseline="@id/tvRefundTurfName"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp"
+                tools:text="2026-06-23" />
+        </RelativeLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@color/border_dark" />
+
+        <!-- Owner Details -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:weightSum="2">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Owner Name"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/tvRefundOwnerName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    tools:text="Gowtham P" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Mobile"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+                <TextView
+                    android:id="@+id/tvRefundOwnerMobile"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp"
+                    tools:text="+919876543210" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Refund Reason -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Reason for Refund"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+            
+        <TextView
+            android:id="@+id/tvRefundReason"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/text_primary"
+            android:textSize="14sp"
+            android:textStyle="italic"
+            android:padding="8dp"
+            android:background="#121217"
+            tools:text="I am not getting enough bookings, so I want to cancel my subscription and get a refund." />
+
+        <!-- Status Badges & Action Buttons Layout -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp">
+
+            <!-- Status Badge -->
+            <TextView
+                android:id="@+id/badgeRefundStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@color/btn_grey"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:textColor="@color/text_primary"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:layout_centerVertical="true"
+                tools:text="PENDING" />
+
+            <!-- Action buttons container (aligned to end) -->
+            <LinearLayout
+                android:id="@+id/layoutRefundActions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnRejectRefund"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:layout_marginEnd="8dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="0dp"
+                    android:backgroundTint="@color/btn_reject"
+                    android:text="Reject"
+                    android:textColor="@color/text_primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnResolveRefund"
+                    android:layout_width="wrap_content"
+                    android:layout_height="32dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="0dp"
+                    android:backgroundTint="@color/btn_approve"
+                    android:text="Refund"
+                    android:textColor="@color/bg_dark"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </RelativeLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

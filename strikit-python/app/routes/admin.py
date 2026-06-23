@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.middleware.security import require_admin_key
 from app.middleware.rate_limiter import limiter
-from app.models import BotOwner, BotBooking, BotTurfSlot, BotSession, BotJoinRequest, BotPayoutLedger, BotPaymentAuditLog
+from app.models import BotOwner, BotBooking, BotTurfSlot, BotSession, BotJoinRequest, BotPayoutLedger, BotPaymentAuditLog, BotOwnerRefundRequest
 from app.services import whatsapp_service, payment_service, payout_service, amount_service, telegram_service
 from app.config import settings
 
@@ -218,12 +218,18 @@ async def get_admin_stats(db: AsyncSession = Depends(get_db)):
         select(func.sum(BotBooking.totalPaidPaise))
     )).scalar() or 0
 
+    # Pending Refund Requests
+    pending_refund_requests = (await db.execute(
+        select(func.count()).select_from(BotOwnerRefundRequest).where(BotOwnerRefundRequest.status == "PENDING")
+    )).scalar() or 0
+
     return {
         "activeTurfs": active_turfs,
         "pendingVerifications": pending_verifications,
         "failedPayouts": failed_payouts,
         "totalBookings": total_bookings,
-        "totalRevenuePaise": total_revenue_paise
+        "totalRevenuePaise": total_revenue_paise,
+        "pendingRefundRequests": pending_refund_requests
     }
 
 
@@ -390,6 +396,102 @@ async def retry_payout(payout_id: int, db: AsyncSession = Depends(get_db)):
         "attemptCount": ledger.attemptCount,
         "payoutId": ledger.razorpayPayoutId,
     }
+
+
+# ══════════════════════════════════════════════════════════════════
+# OWNER SUBSCRIPTION REFUND REQUESTS
+# ══════════════════════════════════════════════════════════════════
+
+@router.get("/refund-requests")
+async def list_refund_requests(
+    status: str = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """List subscription refund requests with owner details."""
+    query = (
+        select(BotOwnerRefundRequest)
+        .options(selectinload(BotOwnerRefundRequest.owner))
+        .join(BotOwner)
+        .order_by(desc(BotOwnerRefundRequest.createdAt))
+    )
+    if status:
+        query = query.where(BotOwnerRefundRequest.status == status)
+    
+    result = await db.execute(query)
+    reqs = result.scalars().all()
+    
+    return [
+        {
+            "id": r.id,
+            "ownerId": r.ownerId,
+            "ownerName": r.owner.name,
+            "turfName": r.owner.turfName,
+            "ownerMobile": r.owner.mobile,
+            "reason": r.reason,
+            "status": r.status,
+            "createdAt": r.createdAt.isoformat() if r.createdAt else None,
+        }
+        for r in reqs
+    ]
+
+
+@router.post("/refund-requests/{id}/resolve")
+async def resolve_refund_request(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark refund request as resolved and deactivate owner's subscription."""
+    req = await db.get(BotOwnerRefundRequest, id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Refund request not found")
+        
+    req.status = "RESOLVED"
+    
+    # Deactivate subscription
+    owner = await db.get(BotOwner, req.ownerId)
+    if owner:
+        owner.subscriptionActive = False
+        try:
+            await whatsapp_service.send_text(
+                owner.mobile,
+                f"ℹ️ *STRIKIT Subscription Refunded* ⚠️\n\n"
+                f"Hello {owner.name}, your refund request for subscription of *{owner.turfName}* has been approved and processed. "
+                f"Your subscription is now inactive."
+            )
+        except Exception as e:
+            logger.error(f"[Admin Resolve Refund] Failed to notify owner: {e}")
+
+    await db.commit()
+    return {"message": "Refund request resolved and owner subscription deactivated"}
+
+
+@router.post("/refund-requests/{id}/reject")
+async def reject_refund_request(
+    id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark refund request as rejected."""
+    req = await db.get(BotOwnerRefundRequest, id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Refund request not found")
+        
+    req.status = "REJECTED"
+    
+    # Notify owner
+    owner = await db.get(BotOwner, req.ownerId)
+    if owner:
+        try:
+            await whatsapp_service.send_text(
+                owner.mobile,
+                f"ℹ️ *STRIKIT Subscription Refund Request Update* ⚠️\n\n"
+                f"Hello {owner.name}, your refund request for subscription of *{owner.turfName}* has been reviewed and rejected. "
+                f"Your subscription remains active."
+            )
+        except Exception as e:
+            logger.error(f"[Admin Reject Refund] Failed to notify owner: {e}")
+
+    await db.commit()
+    return {"message": "Refund request rejected"}
 
 
 # ══════════════════════════════════════════════════════════════════

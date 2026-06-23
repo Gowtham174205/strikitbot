@@ -146,6 +146,7 @@
                 <androidx.cardview.widget.CardView
                     android:layout_width="120dp"
                     android:layout_height="wrap_content"
+                    android:layout_marginEnd="12dp"
                     android:layout_marginVertical="4dp"
                     app:cardBackgroundColor="@color/card_dark"
                     app:cardCornerRadius="8dp"
@@ -168,6 +169,38 @@
                             android:layout_height="wrap_content"
                             android:text="-"
                             android:textColor="@color/status_inactive"
+                            android:textSize="20sp"
+                            android:textStyle="bold"
+                            android:layout_marginTop="4dp" />
+                    </LinearLayout>
+                </androidx.cardview.widget.CardView>
+
+                <!-- Refund Requests Stat Card -->
+                <androidx.cardview.widget.CardView
+                    android:layout_width="120dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginVertical="4dp"
+                    app:cardBackgroundColor="@color/card_dark"
+                    app:cardCornerRadius="8dp"
+                    app:cardElevation="2dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Refund Req."
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:id="@+id/tvStatRefunds"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="-"
+                            android:textColor="@color/status_pending"
                             android:textSize="20sp"
                             android:textStyle="bold"
                             android:layout_marginTop="4dp" />
@@ -313,6 +346,70 @@
             android:clipToPadding="false"
             android:padding="8dp"
             tools:listitem="@layout/item_payout" />
+    </LinearLayout>
+
+    <!-- TAB 4: Refund Requests Layout -->
+    <LinearLayout
+        android:id="@+id/layoutRefunds"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/headerCard"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav">
+
+        <!-- Status Filter Chips -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:scrollbars="none"
+            android:clipToPadding="false"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="8dp">
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipGroupRefundStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:checkedChip="@+id/chipRefundPending">
+                
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipRefundPending"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="PENDING"
+                    app:chipBackgroundColor="@color/btn_grey"
+                    android:textColor="@color/text_primary"/>
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipRefundResolved"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="RESOLVED"
+                    app:chipBackgroundColor="@color/btn_grey"
+                    android:textColor="@color/text_primary"/>
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipRefundRejected"
+                    style="@style/Widget.MaterialComponents.Chip.Choice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="REJECTED"
+                    app:chipBackgroundColor="@color/btn_grey"
+                    android:textColor="@color/text_primary"/>
+            </com.google.android.material.chip.ChipGroup>
+        </HorizontalScrollView>
+
+        <!-- Refund Requests RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvRefunds"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:padding="8dp"
+            tools:listitem="@layout/item_refund_request" />
     </LinearLayout>
 
     <!-- TAB 3: Telegram Settings Layout -->

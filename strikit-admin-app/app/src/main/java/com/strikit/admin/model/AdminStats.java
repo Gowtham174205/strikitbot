@@ -6,6 +6,7 @@ public class AdminStats {
     private int failedPayouts;
     private int totalBookings;
     private long totalRevenuePaise;
+    private int pendingRefundRequests;
 
     public int getActiveTurfs() { return activeTurfs; }
     public void setActiveTurfs(int activeTurfs) { this.activeTurfs = activeTurfs; }
@@ -21,4 +22,7 @@ public class AdminStats {
 
     public long getTotalRevenuePaise() { return totalRevenuePaise; }
     public void setTotalRevenuePaise(long totalRevenuePaise) { this.totalRevenuePaise = totalRevenuePaise; }
+
+    public int getPendingRefundRequests() { return pendingRefundRequests; }
+    public void setPendingRefundRequests(int pendingRefundRequests) { this.pendingRefundRequests = pendingRefundRequests; }
 }

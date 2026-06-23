@@ -25,9 +25,11 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.chip.ChipGroup;
 import com.strikit.admin.adapter.OwnerAdapter;
 import com.strikit.admin.adapter.PayoutAdapter;
+import com.strikit.admin.adapter.RefundRequestAdapter;
 import com.strikit.admin.model.AdminStats;
 import com.strikit.admin.model.Owner;
 import com.strikit.admin.model.Payout;
+import com.strikit.admin.model.RefundRequest;
 import com.strikit.admin.model.PayoutRetryResponse;
 import com.strikit.admin.model.TelegramWebhookResponse;
 import com.strikit.admin.network.ApiClient;
@@ -57,7 +59,13 @@ public class MainActivity extends AppCompatActivity implements
     private ImageButton btnClearSearch;
     private RecyclerView rvOwners;
     private OwnerAdapter ownerAdapter;
-    private TextView tvStatActive, tvStatPending, tvStatFailedPayouts;
+    private TextView tvStatActive, tvStatPending, tvStatFailedPayouts, tvStatRefunds;
+    
+    // TAB 4: Refunds Section
+    private LinearLayout layoutRefunds;
+    private ChipGroup chipGroupRefundStatus;
+    private RecyclerView rvRefunds;
+    private RefundRequestAdapter refundAdapter;
     
     private Handler searchHandler = new Handler(Looper.getMainLooper());
     private Runnable searchRunnable;
@@ -94,6 +102,12 @@ public class MainActivity extends AppCompatActivity implements
         tvStatActive = findViewById(R.id.tvStatActive);
         tvStatPending = findViewById(R.id.tvStatPending);
         tvStatFailedPayouts = findViewById(R.id.tvStatFailedPayouts);
+        tvStatRefunds = findViewById(R.id.tvStatRefunds);
+
+        // Bind TAB 4: Refunds
+        layoutRefunds = findViewById(R.id.layoutRefunds);
+        chipGroupRefundStatus = findViewById(R.id.chipGroupRefundStatus);
+        rvRefunds = findViewById(R.id.rvRefunds);
 
         // Bind TAB 2: Payouts
         layoutPayouts = findViewById(R.id.layoutPayouts);
@@ -119,6 +133,21 @@ public class MainActivity extends AppCompatActivity implements
         rvPayouts.setLayoutManager(new LinearLayoutManager(this));
         payoutAdapter = new PayoutAdapter(this, this);
         rvPayouts.setAdapter(payoutAdapter);
+
+        // Setup Refunds RecyclerView
+        rvRefunds.setLayoutManager(new LinearLayoutManager(this));
+        refundAdapter = new RefundRequestAdapter(this, new RefundRequestAdapter.OnRefundActionListener() {
+            @Override
+            public void onResolveRefund(RefundRequest request) {
+                MainActivity.this.onResolveRefundRequest(request);
+            }
+
+            @Override
+            public void onRejectRefund(RefundRequest request) {
+                MainActivity.this.onRejectRefundRequest(request);
+            }
+        });
+        rvRefunds.setAdapter(refundAdapter);
 
         // Fetch initial list & stats
         fetchOwners("");
@@ -169,6 +198,10 @@ public class MainActivity extends AppCompatActivity implements
                 showTab(2);
                 loadPayoutsBySelectedChip();
                 return true;
+            } else if (itemId == R.id.nav_refunds) {
+                showTab(4);
+                loadRefundsBySelectedChip();
+                return true;
             } else if (itemId == R.id.nav_telegram) {
                 showTab(3);
                 syncSettingsFields();
@@ -182,6 +215,11 @@ public class MainActivity extends AppCompatActivity implements
             loadPayoutsBySelectedChip();
         });
 
+        // Refunds Chip Filter Selection
+        chipGroupRefundStatus.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            loadRefundsBySelectedChip();
+        });
+
         // Save Settings Button
         btnSaveSettings.setOnClickListener(v -> saveSettingsFromUi());
 
@@ -193,6 +231,7 @@ public class MainActivity extends AppCompatActivity implements
         layoutOwners.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
         layoutPayouts.setVisibility(tabIndex == 2 ? View.VISIBLE : View.GONE);
         layoutTelegram.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
+        layoutRefunds.setVisibility(tabIndex == 4 ? View.VISIBLE : View.GONE);
         tvEmptyState.setVisibility(View.GONE);
     }
 
@@ -241,6 +280,7 @@ public class MainActivity extends AppCompatActivity implements
                     tvStatActive.setText(String.valueOf(stats.getActiveTurfs()));
                     tvStatPending.setText(String.valueOf(stats.getPendingVerifications()));
                     tvStatFailedPayouts.setText(String.valueOf(stats.getFailedPayouts()));
+                    tvStatRefunds.setText(String.valueOf(stats.getPendingRefundRequests()));
                 }
             }
 
@@ -482,6 +522,113 @@ public class MainActivity extends AppCompatActivity implements
                 })
                 .setNegativeButton("Cancel", null)
                 .setIcon(android.R.drawable.ic_dialog_alert)
+                .show();
+    }
+
+    private void loadRefundsBySelectedChip() {
+        int checkedId = chipGroupRefundStatus.getCheckedChipId();
+        String status = null;
+        if (checkedId == R.id.chipRefundPending) {
+            status = "PENDING";
+        } else if (checkedId == R.id.chipRefundResolved) {
+            status = "RESOLVED";
+        } else if (checkedId == R.id.chipRefundRejected) {
+            status = "REJECTED";
+        }
+        fetchRefundRequests(status);
+    }
+
+    private void fetchRefundRequests(String status) {
+        loader.setVisibility(View.VISIBLE);
+        tvEmptyState.setVisibility(View.GONE);
+
+        apiService.getRefundRequests(status).enqueue(new Callback<List<RefundRequest>>() {
+            @Override
+            public void onResponse(Call<List<RefundRequest>> call, Response<List<RefundRequest>> response) {
+                loader.setVisibility(View.GONE);
+                if (response.isSuccessful() && response.body() != null) {
+                    List<RefundRequest> list = response.body();
+                    refundAdapter.setRefunds(list);
+                    if (list.isEmpty()) {
+                        tvEmptyState.setText("No refund requests found.");
+                        tvEmptyState.setVisibility(View.VISIBLE);
+                    } else {
+                        tvEmptyState.setVisibility(View.GONE);
+                    }
+                } else {
+                    refundAdapter.setRefunds(new ArrayList<>());
+                    tvEmptyState.setText("Server error. Code: " + response.code());
+                    tvEmptyState.setVisibility(View.VISIBLE);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<List<RefundRequest>> call, Throwable t) {
+                loader.setVisibility(View.GONE);
+                refundAdapter.setRefunds(new ArrayList<>());
+                tvEmptyState.setText("Network Error: " + t.getMessage());
+                tvEmptyState.setVisibility(View.VISIBLE);
+            }
+        });
+    }
+
+    private void onResolveRefundRequest(RefundRequest request) {
+        new AlertDialog.Builder(this)
+                .setTitle("Process Refund")
+                .setMessage("Are you sure you want to approve this subscription refund for turf " + request.getTurfName() + "?\n\nThis will deactivate their subscription and notify the owner.")
+                .setPositiveButton("Refund", (dialog, which) -> {
+                    loader.setVisibility(View.VISIBLE);
+                    apiService.resolveRefundRequest(request.getId()).enqueue(new Callback<Void>() {
+                        @Override
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            loader.setVisibility(View.GONE);
+                            if (response.isSuccessful()) {
+                                Toast.makeText(MainActivity.this, "Refund request resolved and owner subscription deactivated.", Toast.LENGTH_LONG).show();
+                                loadRefundsBySelectedChip();
+                                fetchStats();
+                            } else {
+                                Toast.makeText(MainActivity.this, "Failed to resolve refund. Code: " + response.code(), Toast.LENGTH_LONG).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            loader.setVisibility(View.GONE);
+                            Toast.makeText(MainActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void onRejectRefundRequest(RefundRequest request) {
+        new AlertDialog.Builder(this)
+                .setTitle("Reject Refund Request")
+                .setMessage("Are you sure you want to reject the subscription refund request for turf " + request.getTurfName() + "?")
+                .setPositiveButton("Reject", (dialog, which) -> {
+                    loader.setVisibility(View.VISIBLE);
+                    apiService.rejectRefundRequest(request.getId()).enqueue(new Callback<Void>() {
+                        @Override
+                        public void onResponse(Call<Void> call, Response<Void> response) {
+                            loader.setVisibility(View.GONE);
+                            if (response.isSuccessful()) {
+                                Toast.makeText(MainActivity.this, "Refund request rejected.", Toast.LENGTH_LONG).show();
+                                loadRefundsBySelectedChip();
+                                fetchStats();
+                            } else {
+                                Toast.makeText(MainActivity.this, "Failed to reject refund. Code: " + response.code(), Toast.LENGTH_LONG).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<Void> call, Throwable t) {
+                            loader.setVisibility(View.GONE);
+                            Toast.makeText(MainActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                })
+                .setNegativeButton("Cancel", null)
                 .show();
     }
 }

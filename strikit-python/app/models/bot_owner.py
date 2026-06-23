@@ -28,6 +28,7 @@ class BotOwner(Base):
     businessPhone = Column(String, unique=True, nullable=True)
     subscriptionActive = Column(Boolean, default=False)
     subscriptionExpiry = Column(DateTime, nullable=True)
+    subscriptionStartedAt = Column(DateTime, nullable=True)
     subscriptionPlan = Column(String, default="TRIAL")
     createdAt = Column(DateTime, default=func.now())
     openingTime = Column(String, default="06:00 AM")

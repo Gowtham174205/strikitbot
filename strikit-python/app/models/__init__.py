@@ -6,6 +6,7 @@ from app.models.bot_join_request import BotJoinRequest
 from app.models.bot_session import BotSession
 from app.models.bot_payout_ledger import BotPayoutLedger
 from app.models.bot_payment_audit import BotPaymentAuditLog
+from app.models.bot_owner_refund_request import BotOwnerRefundRequest
 
 __all__ = [
     "BotOwner",
@@ -15,4 +16,5 @@ __all__ = [
     "BotSession",
     "BotPayoutLedger",
     "BotPaymentAuditLog",
+    "BotOwnerRefundRequest",
 ]

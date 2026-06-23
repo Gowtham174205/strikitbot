@@ -37,4 +37,13 @@ public interface ApiService {
 
     @POST("telegram/setup-webhook")
     Call<TelegramWebhookResponse> setupTelegramWebhook();
+
+    @GET("refund-requests")
+    Call<List<com.strikit.admin.model.RefundRequest>> getRefundRequests(@Query("status") String status);
+
+    @POST("refund-requests/{id}/resolve")
+    Call<Void> resolveRefundRequest(@Path("id") int id);
+
+    @POST("refund-requests/{id}/reject")
+    Call<Void> rejectRefundRequest(@Path("id") int id);
 }

@@ -131,6 +131,37 @@ async def handle_whatsapp_message(
         await handle_developer_command(phone, text, db)
         return
 
+    # Direct refund command intercept
+    if lower in ("/refund", "/refunt", "refund", "refunt"):
+        owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+        if owner:
+            if not owner.verified:
+                await whatsapp_service.send_text(phone, "⏳ Your turf verification is pending developer approval.")
+                return
+            
+            from datetime import timedelta
+            eligible = False
+            now = datetime.utcnow()
+            if owner.subscriptionActive:
+                ref_date = owner.subscriptionStartedAt or owner.createdAt
+                if ref_date and (now - ref_date) <= timedelta(days=7):
+                    eligible = True
+            
+            if not eligible:
+                await whatsapp_service.send_text(
+                    phone,
+                    "⚠️ *Refund Not Allowed* ⚠️\n\n"
+                    "Refund requests can only be made within 7 days of subscription activation."
+                )
+                return
+
+            await whatsapp_service.send_text(
+                phone,
+                "✍️ Please type the reason for requesting a refund. Tell us why you want to cancel your subscription:"
+            )
+            await update_session(phone, "AWAITING_OWNER_REFUND_REASON", {"ownerId": owner.id}, db, role="OWNER")
+            return
+
     # Handle subscription renewal button clicks or upgrade commands
     if lower in ("sub_plan_basic", "sub_plan_premium", "sub_plan_prem3m") or lower in ("upgrade", "renew", "owner_upgrade", "owner_renew"):
         owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
@@ -613,6 +644,31 @@ async def handle_owner_commands(
     """Handle commands from verified, subscribed owners."""
     lower = text.lower().strip()
 
+    # Refund request command inside owner commands
+    if lower in ("owner_refund", "/refund", "refund", "/refunt", "refunt"):
+        from datetime import timedelta
+        eligible = False
+        now = datetime.utcnow()
+        if owner.subscriptionActive:
+            ref_date = owner.subscriptionStartedAt or owner.createdAt
+            if ref_date and (now - ref_date) <= timedelta(days=7):
+                eligible = True
+        
+        if not eligible:
+            await whatsapp_service.send_text(
+                phone,
+                "⚠️ *Refund Not Allowed* ⚠️\n\n"
+                "Refund requests can only be made within 7 days of subscription activation."
+            )
+            return
+
+        await whatsapp_service.send_text(
+            phone,
+            "✍️ Please type the reason for requesting a refund. Tell us why you want to cancel your subscription:"
+        )
+        await update_session(phone, "AWAITING_OWNER_REFUND_REASON", {"ownerId": owner.id}, db, role="OWNER")
+        return
+
     # Enforce Basic plan limits
     if owner.subscriptionPlan == "BASIC":
         # Get active session
@@ -755,6 +811,45 @@ async def handle_owner_commands(
 
     # Settings actions
     session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
+
+    if session and session.state == "AWAITING_OWNER_REFUND_REASON":
+        reason_text = text.strip()
+        if not reason_text:
+            await whatsapp_service.send_text(phone, "Please enter a valid reason:")
+            return
+
+        from app.models.bot_owner_refund_request import BotOwnerRefundRequest
+        refund_req = BotOwnerRefundRequest(
+            ownerId=owner.id,
+            reason=reason_text,
+            status="PENDING",
+            createdAt=datetime.utcnow()
+        )
+        db.add(refund_req)
+        await db.delete(session)
+        await db.commit()
+
+        # Send Telegram alert to admin
+        try:
+            alert_msg = (
+                f"🚨 *NEW REFUND REQUEST* 🚨\n\n"
+                f"👤 *Owner:* {owner.name}\n"
+                f"📞 *Mobile:* {owner.mobile}\n"
+                f"🏟️ *Turf:* {owner.turfName}\n"
+                f"📅 *Activated:* {owner.subscriptionStartedAt.strftime('%Y-%m-%d %H:%M') if owner.subscriptionStartedAt else 'N/A'}\n"
+                f"💬 *Reason:* {reason_text}"
+            )
+            await telegram_service.send_alert(alert_msg)
+        except Exception as e:
+            logger.error(f"[Owner Refund Alert] Failed to send Telegram alert: {e}")
+
+        await whatsapp_service.send_text(
+            phone,
+            "✅ *Refund Request Submitted*\n\n"
+            "Your request has been sent to the STRIKIT Admin team for manual review. "
+            "We will get back to you shortly."
+        )
+        return
 
     if lower == "set_price":
         await whatsapp_service.send_text(phone, "Enter new hourly price in Rupees (e.g. 1500):")
@@ -1546,6 +1641,7 @@ async def handle_developer_command(phone: str, text: str, db: AsyncSession):
                 else:
                     days = 30
         owner.subscriptionActive = True
+        owner.subscriptionStartedAt = datetime.utcnow()
         owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=days)
         owner.subscriptionPlan = plan
         await db.commit()

@@ -466,6 +466,7 @@ async def _handle_subscription_payment(db: AsyncSession, notes: dict) -> JSONRes
 
     # Activate subscription and set expiry
     owner.subscriptionActive = True
+    owner.subscriptionStartedAt = datetime.utcnow()
     owner.subscriptionPlan = plan
 
     from datetime import timedelta

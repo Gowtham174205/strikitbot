@@ -252,3 +252,1329 @@ Please select your role to continue:
 2026-06-21 18:25:47 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
 2026-06-21 18:25:47 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
 2026-06-21 18:25:47 [INFO] httpx: HTTP Request: GET http://test/api/admin/owners "HTTP/1.1 200 OK"
+2026-06-21 18:25:47 [INFO] httpx: HTTP Request: GET http://test/api/admin/payouts "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "hi"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "role_owner"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Gowtham P"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Thank you, Gowtham P. Now, please enter your *Turf Name*:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Strikers Turf"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Got it: "Strikers Turf". Please enter the *Location* as a Google Maps link:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "https://maps.google.com/?q=12.9715987,77.5945627"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *turf photos* (send as images). Click Done when finished:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "turf_pic.jpg"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 📷 Photo 1 received! Send more or click Done.
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "DONE"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *GST Number*:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "33AAAAA1111A1Z1"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *MSME Certificate* as a photo or PDF document:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *Utility Bill* (e.g. EB, water, postpaid, fiber bill) as a photo or PDF:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *UPI ID* for receiving payouts (e.g. name@upi):
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "gowtham@upi"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] ✅ *Registration Complete!*
+
+Your details have been submitted for verification:
+• Name: Gowtham P
+• T
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] 🆕 *New Owner Onboarding Request* 🆕
+
+• *ID:* 1
+• *Name:* Gowtham P
+• *Phone:* 919000000000
+• *Turf:* 
+2026-06-22 06:36:45 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🆕 <b>New Owner Onboarding</b>
+
+<b>Name:</b> Gowtham P
+<b>Phone:</b> 919000000000
+<b>Turf:</b> Strikers Turf
+<b>Location:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919876543210 → To: 919360756749 | Text: "/approve 1"
+2026-06-22 06:36:45 [INFO] app.services.payment_service: [PaymentService] Mock subscription link for owner 1 with plan TRIAL
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Approved!* Your turf *Strikers Turf* is verified.
+
+Please complete your subscription payment to a
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] ✅ Owner Gowtham P approved.
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=subscription | PaymentID=pay_sub_123 | AmountPaise=69900 | LinkID=plink_sub_123
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Subscription activated (TRIAL) for owner Gowtham P
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Subscription Activated!* 🎉
+
+Hello Gowtham P, your STRIKIT subscription for *Strikers Turf* is now
+2026-06-22 06:36:45 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+Subscription activated: Gowtham P (Strikers Turf) - Plan: TRIAL
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "hi"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "role_player"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+To help you find the best turfs nearby, please share your current location 
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "location:12.9715987,77.5945627"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Nearby Turfs Found (within 10km):*
+
+Select a turf below to book:
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: Or choose an option:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "select_turf_1"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 📅 *Strikers Turf*
+
+Select a date for your booking:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "date_2026-06-15"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ⏰ Available slots for *2026-06-15* at *Strikers Turf*:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "07:00 PM"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter your *Name and Team Name*
+(Format: Name - TeamName, e.g. John - HawksFC):
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "John - HawksFC"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter the *Sport/Event* you are playing (e.g. Cricket, Football):
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Football"
+2026-06-22 06:36:45 [INFO] app.services.payment_service: [PaymentService] Mock booking link for slot 07:00 PM on 2026-06-15
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Booking Summary - Strikers Turf* 📋
+
+Hello John, here is your booking summary:
+
+• Turf: *Strikers 
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] ✅ Booking #1 confirmed. Ledger key: booking_1_pay_book_123_1
+2026-06-22 06:36:45 [INFO] app.services.payout_service: [Payout] Initiating ₹1000.00 payout to owner Gowtham P (UPI: gowtham@upi)
+2026-06-22 06:36:45 [INFO] app.services.payout_service: [Payout] MOCK payout of ₹1000.00 to UPI: gowtham@upi
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Confirmed!* ✅
+
+Hello John, your turf booking is confirmed!
+
+• Turf: *Strikers Turf*
+• Dat
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 📅 *New Booking Alert for Strikers Turf!* 📅
+
+Hello Gowtham P, a new booking has been confirmed at you
+2026-06-22 06:36:45 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+New Booking at Strikers Turf:
+Captain: John (919999999999)
+Team: HawksFC
+Date: 2026-06-15 @ 07:0
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] DUPLICATE: Payment pay_book_123 already verified
+2026-06-22 06:36:45 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟡 <b>DUPLICATE PAYOUT BLOCKED</b>
+
+<b>Booking ID:</b> 1
+<b>Idempotency Key:</b> booking_1_pay_book_123_1
+
+ℹ️ Existing pa
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:36:45 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_456 | AmountPaise=1050000 | LinkID=plink_book_456
+2026-06-22 06:36:45 [ERROR] app.routes.razorpay: [Razorpay Webhook] AMOUNT MISMATCH! Expected=105000, Received=1050000
+2026-06-22 06:36:45 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟠 <b>AMOUNT MISMATCH</b>
+
+<b>Booking ID:</b> 0
+<b>Expected:</b> ₹1050.00 (105000 paise)
+<b>Received:</b> ₹10500.00 (1050
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "hi"
+2026-06-22 06:36:45 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:36:45 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:45 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:45 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "role_owner"
+2026-06-22 06:36:46 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-22 06:36:46 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:46 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:36:46 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "cancel_onboarding"
+2026-06-22 06:36:46 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:36:46 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:36:46 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
+2026-06-22 06:36:46 [INFO] httpx: HTTP Request: GET http://test/api/admin/owners "HTTP/1.1 200 OK"
+2026-06-22 06:36:46 [INFO] httpx: HTTP Request: GET http://test/api/admin/payouts "HTTP/1.1 200 OK"
+2026-06-22 06:37:34 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:37:34 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-22 06:37:34 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:37:34 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:37:34 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:37:34 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-22 06:37:34 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:37:34 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:37:34 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:37:34 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-22 06:37:34 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:37:34 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:37:34 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:37:34 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-22 06:37:34 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:37:34 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:38:14 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:38:14 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-22 06:38:14 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+To help you find the best turfs nearby, please share your current location 
+2026-06-22 06:38:14 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:38:14 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:38:14 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-22 06:38:14 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_5678 of amount 55000 paise
+2026-06-22 06:38:14 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 2
+<b>Refund Percentage:</b
+2026-06-22 06:38:14 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 2*
+• Date: 2026
+2026-06-22 06:38:14 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:38:14 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:38:14 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-22 06:38:14 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 3
+<b>Refund Percentage:</b
+2026-06-22 06:38:14 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 3*
+• Date: 2026
+2026-06-22 06:38:14 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:38:14 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:38:14 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-22 06:38:14 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✍️ Please type the reason for cancelling your booking:
+2026-06-22 06:38:14 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:38:14 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:38:14 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Going out of town for family function"
+2026-06-22 06:38:14 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_custom of amount 88000 paise
+2026-06-22 06:38:14 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 4
+<b>Refund Percentage:</b
+2026-06-22 06:38:14 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 4*
+• Date: 2026
+2026-06-22 06:38:14 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:39:20 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:39:20 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-22 06:39:20 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ⚠️ Please share your current location using the native WhatsApp Location sharing button (📎 -> Locati
+2026-06-22 06:39:20 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:39:20 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:39:20 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-22 06:39:20 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_5678 of amount 55000 paise
+2026-06-22 06:39:20 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 2
+<b>Refund Percentage:</b
+2026-06-22 06:39:20 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 2*
+• Date: 2026
+2026-06-22 06:39:20 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:39:20 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:39:20 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-22 06:39:20 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 3
+<b>Refund Percentage:</b
+2026-06-22 06:39:20 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 3*
+• Date: 2026
+2026-06-22 06:39:20 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:39:20 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:39:20 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-22 06:39:20 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✍️ Please type the reason for cancelling your booking:
+2026-06-22 06:39:20 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:39:20 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:39:20 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Going out of town for family function"
+2026-06-22 06:39:20 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_custom of amount 88000 paise
+2026-06-22 06:39:20 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 4
+<b>Refund Percentage:</b
+2026-06-22 06:39:20 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 4*
+• Date: 2026
+2026-06-22 06:39:20 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Your Recent Bookings*
+
+• *Standard Arena*
+  Date: 2026-06-22 | 07:00 AM - 08:00 AM
+  Team: Avenge
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Booking Cancellation*
+
+If you want to cancel one of your upcoming bookings, select it from the m
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_select_1"
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ❓ *Please select the reason for cancellation:*
+
+Your feedback helps us improve.
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_plans"
+2026-06-22 06:40:13 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_12345 of amount 88000 paise
+2026-06-22 06:40:13 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Standard Arena
+<b>Refund Percent
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Standard Arena*
+• Dat
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-22 06:40:13 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_5678 of amount 55000 paise
+2026-06-22 06:40:13 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 2
+<b>Refund Percentage:</b
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 2*
+• Date: 2026
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-22 06:40:13 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 3
+<b>Refund Percentage:</b
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 3*
+• Date: 2026
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✍️ Please type the reason for cancelling your booking:
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:13 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:13 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Going out of town for family function"
+2026-06-22 06:40:13 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_custom of amount 88000 paise
+2026-06-22 06:40:13 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 4
+<b>Refund Percentage:</b
+2026-06-22 06:40:13 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 4*
+• Date: 2026
+2026-06-22 06:40:13 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:38 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:38 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-22 06:40:38 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Your Recent Bookings*
+
+• *Standard Arena*
+  Date: 2026-06-22 | 07:00 AM - 08:00 AM
+  Team: Avenge
+2026-06-22 06:40:38 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Booking Cancellation*
+
+If you want to cancel one of your upcoming bookings, select it from the m
+2026-06-22 06:40:38 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:38 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:38 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_select_1"
+2026-06-22 06:40:38 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ❓ *Please select the reason for cancellation:*
+
+Your feedback helps us improve.
+2026-06-22 06:40:38 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:38 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:38 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_plans"
+2026-06-22 06:40:38 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_12345 of amount 88000 paise
+2026-06-22 06:40:38 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Standard Arena
+<b>Refund Percent
+2026-06-22 06:40:38 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Standard Arena*
+• Dat
+2026-06-22 06:40:38 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-22 06:40:39 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_5678 of amount 55000 paise
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 2
+<b>Refund Percentage:</b
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 2*
+• Date: 2026
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 3
+<b>Refund Percentage:</b
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 3*
+• Date: 2026
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✍️ Please type the reason for cancelling your booking:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Going out of town for family function"
+2026-06-22 06:40:39 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_custom of amount 88000 paise
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 4
+<b>Refund Percentage:</b
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 4*
+• Date: 2026
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "hi"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "role_owner"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Gowtham P"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Thank you, Gowtham P. Now, please enter your *Turf Name*:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Strikers Turf"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Got it: "Strikers Turf". Please enter the *Location* as a Google Maps link:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "https://maps.google.com/?q=12.9715987,77.5945627"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *turf photos* (send as images). Click Done when finished:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "turf_pic.jpg"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 📷 Photo 1 received! Send more or click Done.
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "DONE"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *GST Number*:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "33AAAAA1111A1Z1"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *MSME Certificate* as a photo or PDF document:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *Utility Bill* (e.g. EB, water, postpaid, fiber bill) as a photo or PDF:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *UPI ID* for receiving payouts (e.g. name@upi):
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "gowtham@upi"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] ✅ *Registration Complete!*
+
+Your details have been submitted for verification:
+• Name: Gowtham P
+• T
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] 🆕 *New Owner Onboarding Request* 🆕
+
+• *ID:* 1
+• *Name:* Gowtham P
+• *Phone:* 919000000000
+• *Turf:* 
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🆕 <b>New Owner Onboarding</b>
+
+<b>Name:</b> Gowtham P
+<b>Phone:</b> 919000000000
+<b>Turf:</b> Strikers Turf
+<b>Location:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919876543210 → To: 919360756749 | Text: "/approve 1"
+2026-06-22 06:40:39 [INFO] app.services.payment_service: [PaymentService] Mock subscription link for owner 1 with plan TRIAL
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Approved!* Your turf *Strikers Turf* is verified.
+
+Please complete your subscription payment to a
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] ✅ Owner Gowtham P approved.
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=subscription | PaymentID=pay_sub_123 | AmountPaise=69900 | LinkID=plink_sub_123
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Subscription activated (TRIAL) for owner Gowtham P
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Subscription Activated!* 🎉
+
+Hello Gowtham P, your STRIKIT subscription for *Strikers Turf* is now
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+Subscription activated: Gowtham P (Strikers Turf) - Plan: TRIAL
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "hi"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "role_player"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+To help you find the best turfs nearby, please share your current location 
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "location:12.9715987,77.5945627"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Nearby Turfs Found (within 10km):*
+
+Select a turf below to book:
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: Or choose an option:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "select_turf_1"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 📅 *Strikers Turf*
+
+Select a date for your booking:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "date_2026-06-15"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ⏰ Available slots for *2026-06-15* at *Strikers Turf*:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "07:00 PM"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter your *Name and Team Name*
+(Format: Name - TeamName, e.g. John - HawksFC):
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "John - HawksFC"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter the *Sport/Event* you are playing (e.g. Cricket, Football):
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Football"
+2026-06-22 06:40:39 [INFO] app.services.payment_service: [PaymentService] Mock booking link for slot 07:00 PM on 2026-06-15
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Booking Summary - Strikers Turf* 📋
+
+Hello John, here is your booking summary:
+
+• Turf: *Strikers 
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] ✅ Booking #1 confirmed. Ledger key: booking_1_pay_book_123_1
+2026-06-22 06:40:39 [INFO] app.services.payout_service: [Payout] Initiating ₹1000.00 payout to owner Gowtham P (UPI: gowtham@upi)
+2026-06-22 06:40:39 [INFO] app.services.payout_service: [Payout] MOCK payout of ₹1000.00 to UPI: gowtham@upi
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Confirmed!* ✅
+
+Hello John, your turf booking is confirmed!
+
+• Turf: *Strikers Turf*
+• Dat
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 📅 *New Booking Alert for Strikers Turf!* 📅
+
+Hello Gowtham P, a new booking has been confirmed at you
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+New Booking at Strikers Turf:
+Captain: John (919999999999)
+Team: HawksFC
+Date: 2026-06-15 @ 07:0
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] DUPLICATE: Payment pay_book_123 already verified
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟡 <b>DUPLICATE PAYOUT BLOCKED</b>
+
+<b>Booking ID:</b> 1
+<b>Idempotency Key:</b> booking_1_pay_book_123_1
+
+ℹ️ Existing pa
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-22 06:40:39 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_456 | AmountPaise=1050000 | LinkID=plink_book_456
+2026-06-22 06:40:39 [ERROR] app.routes.razorpay: [Razorpay Webhook] AMOUNT MISMATCH! Expected=105000, Received=1050000
+2026-06-22 06:40:39 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟠 <b>AMOUNT MISMATCH</b>
+
+<b>Booking ID:</b> 0
+<b>Expected:</b> ₹1050.00 (105000 paise)
+<b>Received:</b> ₹10500.00 (1050
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "hi"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "role_owner"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-22 06:40:39 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "cancel_onboarding"
+2026-06-22 06:40:39 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: GET http://test/api/admin/owners "HTTP/1.1 200 OK"
+2026-06-22 06:40:39 [INFO] httpx: HTTP Request: GET http://test/api/admin/payouts "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Your Recent Bookings*
+
+• *Standard Arena*
+  Date: 2026-06-23 | 11:00 AM - 12:00 AM
+  Team: Avenge
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Booking Cancellation*
+
+If you want to cancel one of your upcoming bookings, select it from the m
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_select_1"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ❓ *Please select the reason for cancellation:*
+
+Your feedback helps us improve.
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_plans"
+2026-06-23 10:42:35 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_12345 of amount 88000 paise
+2026-06-23 10:42:35 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Standard Arena
+<b>Refund Percent
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Standard Arena*
+• Dat
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-23 10:42:35 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_5678 of amount 55000 paise
+2026-06-23 10:42:35 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 2
+<b>Refund Percentage:</b
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 2*
+• Date: 2026
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-23 10:42:35 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 3
+<b>Refund Percentage:</b
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 3*
+• Date: 2026
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✍️ Please type the reason for cancelling your booking:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Going out of town for family function"
+2026-06-23 10:42:35 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_custom of amount 88000 paise
+2026-06-23 10:42:35 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 4
+<b>Refund Percentage:</b
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 4*
+• Date: 2026
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "hi"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "role_owner"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Gowtham P"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Thank you, Gowtham P. Now, please enter your *Turf Name*:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Strikers Turf"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Got it: "Strikers Turf". Please enter the *Location* as a Google Maps link:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "https://maps.google.com/?q=12.9715987,77.5945627"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *turf photos* (send as images). Click Done when finished:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "turf_pic.jpg"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 📷 Photo 1 received! Send more or click Done.
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "DONE"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *GST Number*:
+2026-06-23 10:42:35 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:35 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:35 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "33AAAAA1111A1Z1"
+2026-06-23 10:42:35 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *MSME Certificate* as a photo or PDF document:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *Utility Bill* (e.g. EB, water, postpaid, fiber bill) as a photo or PDF:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *UPI ID* for receiving payouts (e.g. name@upi):
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "gowtham@upi"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] ✅ *Registration Complete!*
+
+Your details have been submitted for verification:
+• Name: Gowtham P
+• T
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] 🆕 *New Owner Onboarding Request* 🆕
+
+• *ID:* 1
+• *Name:* Gowtham P
+• *Phone:* 919000000000
+• *Turf:* 
+2026-06-23 10:42:36 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🆕 <b>New Owner Onboarding</b>
+
+<b>Name:</b> Gowtham P
+<b>Phone:</b> 919000000000
+<b>Turf:</b> Strikers Turf
+<b>Location:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919876543210 → To: 919360756749 | Text: "/approve 1"
+2026-06-23 10:42:36 [INFO] app.services.payment_service: [PaymentService] Mock subscription link for owner 1 with plan TRIAL
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Approved!* Your turf *Strikers Turf* is verified.
+
+Please complete your subscription payment to a
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] ✅ Owner Gowtham P approved.
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=subscription | PaymentID=pay_sub_123 | AmountPaise=69900 | LinkID=plink_sub_123
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Subscription activated (TRIAL) for owner Gowtham P
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Subscription Activated!* 🎉
+
+Hello Gowtham P, your STRIKIT subscription for *Strikers Turf* is now
+2026-06-23 10:42:36 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+Subscription activated: Gowtham P (Strikers Turf) - Plan: TRIAL
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "hi"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "role_player"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+To help you find the best turfs nearby, please share your current location 
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "location:12.9715987,77.5945627"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Nearby Turfs Found (within 10km):*
+
+Select a turf below to book:
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: Or choose an option:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "select_turf_1"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 📅 *Strikers Turf*
+
+Select a date for your booking:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "date_2026-06-15"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ⏰ Available slots for *2026-06-15* at *Strikers Turf*:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "07:00 PM"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter your *Name and Team Name*
+(Format: Name - TeamName, e.g. John - HawksFC):
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "John - HawksFC"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter the *Sport/Event* you are playing (e.g. Cricket, Football):
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Football"
+2026-06-23 10:42:36 [INFO] app.services.payment_service: [PaymentService] Mock booking link for slot 07:00 PM on 2026-06-15
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Booking Summary - Strikers Turf* 📋
+
+Hello John, here is your booking summary:
+
+• Turf: *Strikers 
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] ✅ Booking #1 confirmed. Ledger key: booking_1_pay_book_123_1
+2026-06-23 10:42:36 [INFO] app.services.payout_service: [Payout] Initiating ₹1000.00 payout to owner Gowtham P (UPI: gowtham@upi)
+2026-06-23 10:42:36 [INFO] app.services.payout_service: [Payout] MOCK payout of ₹1000.00 to UPI: gowtham@upi
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Confirmed!* ✅
+
+Hello John, your turf booking is confirmed!
+
+• Turf: *Strikers Turf*
+• Dat
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 📅 *New Booking Alert for Strikers Turf!* 📅
+
+Hello Gowtham P, a new booking has been confirmed at you
+2026-06-23 10:42:36 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+New Booking at Strikers Turf:
+Captain: John (919999999999)
+Team: HawksFC
+Date: 2026-06-15 @ 07:0
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] DUPLICATE: Payment pay_book_123 already verified
+2026-06-23 10:42:36 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟡 <b>DUPLICATE PAYOUT BLOCKED</b>
+
+<b>Booking ID:</b> 1
+<b>Idempotency Key:</b> booking_1_pay_book_123_1
+
+ℹ️ Existing pa
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:42:36 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_456 | AmountPaise=1050000 | LinkID=plink_book_456
+2026-06-23 10:42:36 [ERROR] app.routes.razorpay: [Razorpay Webhook] AMOUNT MISMATCH! Expected=105000, Received=1050000
+2026-06-23 10:42:36 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟠 <b>AMOUNT MISMATCH</b>
+
+<b>Booking ID:</b> 0
+<b>Expected:</b> ₹1050.00 (105000 paise)
+<b>Received:</b> ₹10500.00 (1050
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "hi"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "role_owner"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:42:36 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "cancel_onboarding"
+2026-06-23 10:42:36 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: GET http://test/api/admin/owners "HTTP/1.1 200 OK"
+2026-06-23 10:42:36 [INFO] httpx: HTTP Request: GET http://test/api/admin/payouts "HTTP/1.1 200 OK"
+2026-06-23 10:48:03 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:03 [INFO] app.routes.whatsapp: [WA] From: 918888888888 → To: 919360756749 | Text: "/refund"
+2026-06-23 10:48:03 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ✍️ Please type the reason for requesting a refund. Tell us why you want to cancel your subscription:
+2026-06-23 10:48:03 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:03 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:03 [INFO] app.routes.whatsapp: [WA] From: 917777777777 → To: 919360756749 | Text: "/refund"
+2026-06-23 10:48:03 [INFO] app.services.whatsapp_service: [MOCK WA → 917777777777] ⚠️ *Refund Not Allowed* ⚠️
+
+Refund requests can only be made within 7 days of subscription activatio
+2026-06-23 10:48:03 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:21 [INFO] app.routes.whatsapp: [WA] From: 918888888888 → To: 919360756749 | Text: "/refund"
+2026-06-23 10:48:21 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ✍️ Please type the reason for requesting a refund. Tell us why you want to cancel your subscription:
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:21 [INFO] app.routes.whatsapp: [WA] From: 918888888888 → To: 919360756749 | Text: "I am closing my business because of relocation."
+2026-06-23 10:48:21 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+🚨 *NEW REFUND REQUEST* 🚨
+
+👤 *Owner:* John Doe
+📞 *Mobile:* 918888888888
+🏟️ *Turf:* Camp Nou
+📅 *Ac
+2026-06-23 10:48:21 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ✅ *Refund Request Submitted*
+
+Your request has been sent to the STRIKIT Admin team for manual review
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: GET http://test/api/admin/refund-requests "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ℹ️ *STRIKIT Subscription Refund Request Update* ⚠️
+
+Hello John Doe, your refund request for subscrip
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: POST http://test/api/admin/refund-requests/1/reject "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ℹ️ *STRIKIT Subscription Refunded* ⚠️
+
+Hello John Doe, your refund request for subscription of *Camp
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: POST http://test/api/admin/refund-requests/1/resolve "HTTP/1.1 200 OK"
+2026-06-23 10:48:21 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:21 [INFO] app.routes.whatsapp: [WA] From: 917777777777 → To: 919360756749 | Text: "/refund"
+2026-06-23 10:48:21 [INFO] app.services.whatsapp_service: [MOCK WA → 917777777777] ⚠️ *Refund Not Allowed* ⚠️
+
+Refund requests can only be made within 7 days of subscription activatio
+2026-06-23 10:48:21 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:48 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:48 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "mybookings"
+2026-06-23 10:48:48 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Your Recent Bookings*
+
+• *Standard Arena*
+  Date: 2026-06-23 | 11:00 AM - 12:00 AM
+  Team: Avenge
+2026-06-23 10:48:48 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Booking Cancellation*
+
+If you want to cancel one of your upcoming bookings, select it from the m
+2026-06-23 10:48:48 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:48 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:48 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_select_1"
+2026-06-23 10:48:48 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ❓ *Please select the reason for cancellation:*
+
+Your feedback helps us improve.
+2026-06-23 10:48:48 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:48 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:48 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_plans"
+2026-06-23 10:48:48 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_12345 of amount 88000 paise
+2026-06-23 10:48:48 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Standard Arena
+<b>Refund Percent
+2026-06-23 10:48:48 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Standard Arena*
+• Dat
+2026-06-23 10:48:48 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_weather"
+2026-06-23 10:48:49 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_5678 of amount 55000 paise
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 2
+<b>Refund Percentage:</b
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 2*
+• Date: 2026
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_injury"
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 3
+<b>Refund Percentage:</b
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 3*
+• Date: 2026
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "cancel_reason_1_other"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✍️ Please type the reason for cancelling your booking:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Going out of town for family function"
+2026-06-23 10:48:49 [INFO] app.services.payment_service: [PaymentService] Mock refund for payment pay_mock_custom of amount 88000 paise
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] ⚠️ <b>BOOKING CANCELLED</b>
+
+<b>Booking ID:</b> 1
+<b>Owner:</b> Test Owner
+<b>Turf:</b> Arena 4
+<b>Refund Percentage:</b
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Cancelled Successfully*
+
+Your booking has been cancelled.
+
+• Turf: *Arena 4*
+• Date: 2026
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "hi"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "role_owner"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Gowtham P"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Thank you, Gowtham P. Now, please enter your *Turf Name*:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "Strikers Turf"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Got it: "Strikers Turf". Please enter the *Location* as a Google Maps link:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "https://maps.google.com/?q=12.9715987,77.5945627"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *turf photos* (send as images). Click Done when finished:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "turf_pic.jpg"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: 📷 Photo 1 received! Send more or click Done.
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "DONE"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *GST Number*:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "33AAAAA1111A1Z1"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *MSME Certificate* as a photo or PDF document:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Please upload your *Utility Bill* (e.g. EB, water, postpaid, fiber bill) as a photo or PDF:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "SKIP"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] Interactive: Enter your *UPI ID* for receiving payouts (e.g. name@upi):
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919000000000 → To: 919360756749 | Text: "gowtham@upi"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] ✅ *Registration Complete!*
+
+Your details have been submitted for verification:
+• Name: Gowtham P
+• T
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] 🆕 *New Owner Onboarding Request* 🆕
+
+• *ID:* 1
+• *Name:* Gowtham P
+• *Phone:* 919000000000
+• *Turf:* 
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🆕 <b>New Owner Onboarding</b>
+
+<b>Name:</b> Gowtham P
+<b>Phone:</b> 919000000000
+<b>Turf:</b> Strikers Turf
+<b>Location:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919876543210 → To: 919360756749 | Text: "/approve 1"
+2026-06-23 10:48:49 [INFO] app.services.payment_service: [PaymentService] Mock subscription link for owner 1 with plan TRIAL
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Approved!* Your turf *Strikers Turf* is verified.
+
+Please complete your subscription payment to a
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919876543210] ✅ Owner Gowtham P approved.
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=subscription | PaymentID=pay_sub_123 | AmountPaise=69900 | LinkID=plink_sub_123
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Subscription activated (TRIAL) for owner Gowtham P
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 🎉 *Subscription Activated!* 🎉
+
+Hello Gowtham P, your STRIKIT subscription for *Strikers Turf* is now
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+Subscription activated: Gowtham P (Strikers Turf) - Plan: TRIAL
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "hi"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "role_player"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 👋 *Welcome to STRIKIT!*
+
+To help you find the best turfs nearby, please share your current location 
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "location:12.9715987,77.5945627"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 🏟️ *Nearby Turfs Found (within 10km):*
+
+Select a turf below to book:
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: Or choose an option:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "select_turf_1"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: 📅 *Strikers Turf*
+
+Select a date for your booking:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "date_2026-06-15"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Interactive: ⏰ Available slots for *2026-06-15* at *Strikers Turf*:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "07:00 PM"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter your *Name and Team Name*
+(Format: Name - TeamName, e.g. John - HawksFC):
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "John - HawksFC"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] Please enter the *Sport/Event* you are playing (e.g. Cricket, Football):
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919999999999 → To: 919360756749 | Text: "Football"
+2026-06-23 10:48:49 [INFO] app.services.payment_service: [PaymentService] Mock booking link for slot 07:00 PM on 2026-06-15
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] 📋 *Booking Summary - Strikers Turf* 📋
+
+Hello John, here is your booking summary:
+
+• Turf: *Strikers 
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] ✅ Booking #1 confirmed. Ledger key: booking_1_pay_book_123_1
+2026-06-23 10:48:49 [INFO] app.services.payout_service: [Payout] Initiating ₹1000.00 payout to owner Gowtham P (UPI: gowtham@upi)
+2026-06-23 10:48:49 [INFO] app.services.payout_service: [Payout] MOCK payout of ₹1000.00 to UPI: gowtham@upi
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919999999999] ✅ *Booking Confirmed!* ✅
+
+Hello John, your turf booking is confirmed!
+
+• Turf: *Strikers Turf*
+• Dat
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919000000000] 📅 *New Booking Alert for Strikers Turf!* 📅
+
+Hello Gowtham P, a new booking has been confirmed at you
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+New Booking at Strikers Turf:
+Captain: John (919999999999)
+Team: HawksFC
+Date: 2026-06-15 @ 07:0
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_123 | AmountPaise=105000 | LinkID=plink_book_123
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] DUPLICATE: Payment pay_book_123 already verified
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟡 <b>DUPLICATE PAYOUT BLOCKED</b>
+
+<b>Booking ID:</b> 1
+<b>Idempotency Key:</b> booking_1_pay_book_123_1
+
+ℹ️ Existing pa
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] RAZORPAY_WEBHOOK_SECRET not set — skipping verification.
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Event: payment_link.paid
+2026-06-23 10:48:49 [INFO] app.routes.razorpay: [Razorpay Webhook] Type=booking | PaymentID=pay_book_456 | AmountPaise=1050000 | LinkID=plink_book_456
+2026-06-23 10:48:49 [ERROR] app.routes.razorpay: [Razorpay Webhook] AMOUNT MISMATCH! Expected=105000, Received=1050000
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🟠 <b>AMOUNT MISMATCH</b>
+
+<b>Booking ID:</b> 0
+<b>Expected:</b> ₹1050.00 (105000 paise)
+<b>Received:</b> ₹10500.00 (1050
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/razorpay/webhook "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "hi"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "role_owner"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: Welcome to STRIKIT Onboarding! Let's get your turf set up.
+
+Please enter the *Owner Name*:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 919111111111 → To: 919360756749 | Text: "cancel_onboarding"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 919111111111] Interactive: 👋 *Welcome to STRIKIT!*
+
+Please select your role to continue:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: GET http://test/api/admin/owners "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: GET http://test/api/admin/payouts "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 918888888888 → To: 919360756749 | Text: "/refund"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ✍️ Please type the reason for requesting a refund. Tell us why you want to cancel your subscription:
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 918888888888 → To: 919360756749 | Text: "I am closing my business because of relocation."
+2026-06-23 10:48:49 [INFO] app.services.telegram_service: [MOCK TELEGRAM] 🔔 <b>STRIKIT Alert</b>
+
+🚨 *NEW REFUND REQUEST* 🚨
+
+👤 *Owner:* John Doe
+📞 *Mobile:* 918888888888
+🏟️ *Turf:* Camp Nou
+📅 *Ac
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ✅ *Refund Request Submitted*
+
+Your request has been sent to the STRIKIT Admin team for manual review
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/webhook/whatsapp "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: GET http://test/api/admin/stats "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: GET http://test/api/admin/refund-requests "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ℹ️ *STRIKIT Subscription Refund Request Update* ⚠️
+
+Hello John Doe, your refund request for subscrip
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/api/admin/refund-requests/1/reject "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 918888888888] ℹ️ *STRIKIT Subscription Refunded* ⚠️
+
+Hello John Doe, your refund request for subscription of *Camp
+2026-06-23 10:48:49 [INFO] httpx: HTTP Request: POST http://test/api/admin/refund-requests/1/resolve "HTTP/1.1 200 OK"
+2026-06-23 10:48:49 [WARNING] app.middleware.security: [SECURITY] WHATSAPP_APP_SECRET not set — skipping signature verification.
+2026-06-23 10:48:49 [INFO] app.routes.whatsapp: [WA] From: 917777777777 → To: 919360756749 | Text: "/refund"
+2026-06-23 10:48:49 [INFO] app.services.whatsapp_service: [MOCK WA → 917777777777] ⚠️ *Refund Not Allowed* ⚠️
+
+Refund requests can only be made within 7 days of subscription activatio

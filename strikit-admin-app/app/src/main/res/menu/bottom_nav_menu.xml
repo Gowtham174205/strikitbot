@@ -9,6 +9,10 @@
         android:icon="@drawable/ic_payouts"
         android:title="Payouts" />
     <item
+        android:id="@+id/nav_refunds"
+        android:icon="@drawable/ic_refund"
+        android:title="Refunds" />
+    <item
         android:id="@+id/nav_telegram"
         android:icon="@drawable/ic_webhooks"
         android:title="Telegram" />
