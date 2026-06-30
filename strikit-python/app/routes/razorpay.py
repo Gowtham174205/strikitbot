@@ -403,6 +403,14 @@ async def _handle_booking_payment(
             f"• STRIKIT Booking Fee: ₹{rupee_fee}\n\n"
             f"_Powered by STRIKIT_",
         )
+        import urllib.parse
+        wa_link = f"https://wa.me/{settings.ONBOARDING_NUMBER}?text=verify_{booking.id}"
+        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(wa_link)}"
+        await whatsapp_service.send_image(
+            phone,
+            qr_url,
+            caption="🎫 *Your STRIKIT Booking Ticket QR* 🎫\n\nShow this QR at the turf. The turf owner will scan it to verify your booking slot!"
+        )
     except Exception as wa_err:
         logger.error(f"[Razorpay Webhook] WhatsApp notification failed: {wa_err}")
 

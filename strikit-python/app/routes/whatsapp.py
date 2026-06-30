@@ -146,6 +146,57 @@ async def show_role_selection(phone: str):
     )
 
 
+async def process_ticket_verification(phone: str, booking_id: int, db: AsyncSession):
+    """Processes a QR-code based ticket verification scan from a turf owner."""
+    booking = await db.get(BotBooking, booking_id)
+    if not booking:
+        await whatsapp_service.send_text(phone, "❌ *Invalid Ticket!*\n\nNo booking record found for this ticket ID.")
+        return
+
+    slot = await db.get(BotTurfSlot, booking.slotId)
+    if not slot:
+        await whatsapp_service.send_text(phone, "❌ *Invalid Ticket!*\n\nAssociated turf slot could not be found.")
+        return
+
+    owner = await db.get(BotOwner, slot.ownerId)
+    if not owner:
+        await whatsapp_service.send_text(phone, "❌ *Invalid Ticket!*\n\nAssociated turf owner could not be found.")
+        return
+
+    # Check if the sender is the actual turf owner or platform developer/admin
+    dev_numbers = settings.developer_numbers_list
+    if phone != owner.mobile and phone not in dev_numbers:
+        await whatsapp_service.send_text(
+            phone,
+            f"❌ *Verification Denied!*\n\nYou are not authorized to verify tickets for *{owner.turfName}*.\nOnly the registered owner mobile ({owner.mobile}) can scan and verify this ticket."
+        )
+        return
+
+    # Prepare status indicators
+    status_emoji = "🟢"
+    status_text = "PAID & CONFIRMED"
+    if booking.status == "CANCELLED":
+        status_emoji = "🔴"
+        status_text = "CANCELLED"
+    elif booking.status == "PENDING":
+        status_emoji = "🟡"
+        status_text = "PAYMENT PENDING"
+
+    # Send verification details
+    msg = (
+        f"✅ *Booking Ticket Verified!* {status_emoji}\n\n"
+        f"• Turf: *{owner.turfName}*\n"
+        f"• Slot Time: *{slot.startTime} - {slot.endTime}* ({slot.date})\n"
+        f"• Captain Name: *{booking.captainName}* ({booking.phone})\n"
+        f"• Team Name: *{booking.teamName}*\n"
+        f"• Sport/Event: *{booking.sport}*\n"
+        f"• Total Paid: *₹{amount_service.paise_to_rupees(booking.amountPaidPaise)}*\n"
+        f"• Ticket Status: *{status_text}*\n\n"
+        f"_Powered by STRIKIT_"
+    )
+    await whatsapp_service.send_text(phone, msg)
+
+
 async def handle_whatsapp_message(
     phone: str, to: str, text: str, db: AsyncSession,
     media_id: str = "", media_type: str = "",
@@ -153,6 +204,14 @@ async def handle_whatsapp_message(
     """Central routing for all WhatsApp messages."""
     text = (text or "").strip()
     lower = text.lower().strip()
+
+    # Ticket QR Code Verification Intercept
+    if lower.startswith("verify_"):
+        booking_id_str = lower.replace("verify_", "").strip()
+        if booking_id_str.isdigit():
+            booking_id = int(booking_id_str)
+            await process_ticket_verification(phone, booking_id, db)
+            return
 
     # Developer commands
     dev_numbers = settings.developer_numbers_list
