@@ -143,16 +143,77 @@ async def get_media_url(media_id: str) -> str:
         return f"{WHATSAPP_API_URL}/{media_id}"
 
 
+async def download_whatsapp_media(media_id: str, filename_prefix: str) -> str:
+    """
+    Downloads media from WhatsApp Cloud API, saves it to the local static directory,
+    and returns the public URL.
+    """
+    import os
+    if not settings.whatsapp_configured:
+        return f"https://bot.strikit.in/static/mock_media.jpg"
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"{WHATSAPP_API_URL}/{media_id}",
+                headers={"Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            download_url = data.get("url")
+            mime_type = data.get("mime_type", "")
+            
+            ext = ".jpg"
+            if "pdf" in mime_type:
+                ext = ".pdf"
+            elif "png" in mime_type:
+                ext = ".png"
+            elif "jpeg" in mime_type:
+                ext = ".jpg"
+                
+            if not download_url:
+                logger.error(f"[WhatsApp Media] No download URL in metadata for media_id {media_id}")
+                return ""
+                
+            media_resp = await client.get(
+                download_url,
+                headers={"Authorization": f"Bearer {settings.WHATSAPP_ACCESS_TOKEN}"},
+            )
+            media_resp.raise_for_status()
+            
+            os.makedirs("static", exist_ok=True)
+            filename = f"{filename_prefix}_{media_id}{ext}"
+            filepath = os.path.join("static", filename)
+            
+            with open(filepath, "wb") as f:
+                f.write(media_resp.content)
+                
+            public_url = f"https://bot.strikit.in/static/{filename}"
+            logger.info(f"✅ Successfully downloaded WhatsApp media {media_id} -> {public_url}")
+            return public_url
+    except Exception as e:
+        logger.error(f"❌ Failed to download WhatsApp media {media_id}: {e}")
+        return ""
+
+
 async def send_developer_verification_alert(owner) -> None:
-    """Send owner onboarding alert to all configured developer numbers."""
+    """Send owner onboarding alert to all configured developer numbers, attaching media directly."""
     dev_numbers = settings.developer_numbers_list
     if not dev_numbers:
         logger.info("[Developer Alert] No developer numbers configured.")
         return
 
-    msme_val = owner.msme or "N/A"
-    if owner.msmeCardUrl:
-        msme_val = f"Uploaded Certificate: {owner.msmeCardUrl}"
+    # Clean text notification without long links to avoid clutter
+    msme_val = "Uploaded" if owner.msmeCardUrl else "N/A"
+    utility_val = "Uploaded" if owner.utilityBillUrl else "N/A"
+    photos_count = 0
+    import json
+    try:
+        urls = json.loads(owner.photoUrls)
+        if isinstance(urls, list):
+            photos_count = len(urls)
+    except Exception:
+        if owner.photoUrls:
+            photos_count = 1
 
     text = (
         f"🆕 *New Owner Onboarding Request* 🆕\n\n"
@@ -161,10 +222,10 @@ async def send_developer_verification_alert(owner) -> None:
         f"• *Phone:* {owner.mobile}\n"
         f"• *Turf:* {owner.turfName}\n"
         f"• *Location:* {owner.location}\n"
-        f"• *Photos:* {owner.photoUrls}\n"
+        f"• *Photos:* {photos_count} uploaded\n"
         f"• *GST:* {owner.gst or 'N/A'}\n"
         f"• *MSME:* {msme_val}\n"
-        f"• *Utility Bill:* {owner.utilityBillUrl or 'N/A'}\n\n"
+        f"• *Utility Bill:* {utility_val}\n\n"
         f"*Action Commands:*\n"
         f"👉 To approve: reply with `/approve {owner.id}`\n"
         f"👉 To reject: reply with `/reject {owner.id}`\n\n"
@@ -173,6 +234,41 @@ async def send_developer_verification_alert(owner) -> None:
 
     for phone in dev_numbers:
         try:
+            # 1. Send the text notification
             await send_text(phone, text)
+            
+            # 2. Send the actual Turf Photos directly as photo messages
+            try:
+                if owner.photoUrls:
+                    urls = json.loads(owner.photoUrls)
+                    if isinstance(urls, list):
+                        for idx, url in enumerate(urls, 1):
+                            if url.startswith("http"):
+                                await send_image(phone, url, caption=f"Turf Photo {idx} - {owner.turfName}")
+                    elif isinstance(urls, str) and urls.startswith("http"):
+                        await send_image(phone, urls, caption=f"Turf Photo - {owner.turfName}")
+            except Exception as e:
+                logger.error(f"[Developer Alert] Failed to send photos to {phone}: {e}")
+
+            # 3. Send MSME Certificate
+            if owner.msmeCardUrl and owner.msmeCardUrl.startswith("http"):
+                try:
+                    if owner.msmeCardUrl.lower().endswith((".jpg", ".jpeg", ".png")):
+                        await send_image(phone, owner.msmeCardUrl, caption=f"MSME Certificate - {owner.name}")
+                    else:
+                        await send_document(phone, owner.msmeCardUrl, "MSME_Certificate", caption=f"MSME Certificate - {owner.name}")
+                except Exception as e:
+                    logger.error(f"[Developer Alert] Failed to send MSME to {phone}: {e}")
+
+            # 4. Send Utility Bill
+            if owner.utilityBillUrl and owner.utilityBillUrl.startswith("http"):
+                try:
+                    if owner.utilityBillUrl.lower().endswith((".jpg", ".jpeg", ".png")):
+                        await send_image(phone, owner.utilityBillUrl, caption=f"Utility Bill - {owner.name}")
+                    else:
+                        await send_document(phone, owner.utilityBillUrl, "Utility_Bill", caption=f"Utility Bill - {owner.name}")
+                except Exception as e:
+                    logger.error(f"[Developer Alert] Failed to send Utility Bill to {phone}: {e}")
+                    
         except Exception as e:
-            logger.error(f"[Developer Alert] Failed to send to {phone}: {e}")
+            logger.error(f"[Developer Alert] Failed to send alert to {phone}: {e}")

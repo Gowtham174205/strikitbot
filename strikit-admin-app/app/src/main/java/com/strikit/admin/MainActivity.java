@@ -20,6 +20,8 @@ import android.provider.MediaStore;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
@@ -102,15 +104,12 @@ public class MainActivity extends AppCompatActivity implements
     private RecyclerView rvPayouts;
     private PayoutAdapter payoutAdapter;
 
-    // TAB 3: Telegram Settings Section
-    private ScrollView layoutTelegram;
+    // Settings & Webhook & Reports (merged layoutSettings & layoutCms)
+    private ScrollView layoutSettings;
     private EditText etSettingsUrl;
     private EditText etSettingsKey;
     private Button btnSaveSettings;
     private Button btnSetupTelegramWebhook;
-
-    // TAB 5: CMS & Reports Section
-    private ScrollView layoutCms;
     private Spinner spinnerReportType;
     private TextView tvTurfLabel;
     private AutoCompleteTextView autoCompleteTurf;
@@ -121,6 +120,12 @@ public class MainActivity extends AppCompatActivity implements
     private Button btnClearFilters;
     private Button btnDownloadReport;
     private List<Owner> allOwnersList = new ArrayList<>();
+
+    // NEW Dashboard & Unified Views
+    private ScrollView layoutDashboard;
+    private LinearLayout layoutTransactions;
+    private ChipGroup chipGroupTransactions;
+    private androidx.cardview.widget.CardView cardStatActive, cardStatPending, cardStatFailedPayouts, cardStatRefunds;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -153,15 +158,14 @@ public class MainActivity extends AppCompatActivity implements
         chipGroupPayoutStatus = findViewById(R.id.chipGroupPayoutStatus);
         rvPayouts = findViewById(R.id.rvPayouts);
 
-        // Bind TAB 3: Telegram Settings
-        layoutTelegram = findViewById(R.id.layoutTelegram);
+        // Bind Settings
+        layoutSettings = findViewById(R.id.layoutSettings);
         etSettingsUrl = findViewById(R.id.etSettingsUrl);
         etSettingsKey = findViewById(R.id.etSettingsKey);
         btnSaveSettings = findViewById(R.id.btnSaveSettings);
         btnSetupTelegramWebhook = findViewById(R.id.btnSetupTelegramWebhook);
 
-        // Bind TAB 5: CMS & Reports
-        layoutCms = findViewById(R.id.layoutCms);
+        // Bind Reports
         spinnerReportType = findViewById(R.id.spinnerReportType);
         tvTurfLabel = findViewById(R.id.tvTurfLabel);
         autoCompleteTurf = findViewById(R.id.autoCompleteTurf);
@@ -171,6 +175,15 @@ public class MainActivity extends AppCompatActivity implements
         etEndDate = findViewById(R.id.etEndDate);
         btnClearFilters = findViewById(R.id.btnClearFilters);
         btnDownloadReport = findViewById(R.id.btnDownloadReport);
+
+        // Bind NEW Dashboard & Unified views
+        layoutDashboard = findViewById(R.id.layoutDashboard);
+        layoutTransactions = findViewById(R.id.layoutTransactions);
+        chipGroupTransactions = findViewById(R.id.chipGroupTransactions);
+        cardStatActive = findViewById(R.id.cardStatActive);
+        cardStatPending = findViewById(R.id.cardStatPending);
+        cardStatFailedPayouts = findViewById(R.id.cardStatFailedPayouts);
+        cardStatRefunds = findViewById(R.id.cardStatRefunds);
 
         // Populate Report Types spinner
         ArrayAdapter<String> reportTypeAdapter = new ArrayAdapter<>(this,
@@ -242,13 +255,23 @@ public class MainActivity extends AppCompatActivity implements
         });
         rvRefunds.setAdapter(refundAdapter);
 
-        // Fetch initial list & stats
-        fetchOwners("");
+        // Fetch initial stats for dashboard
+        showTab(0);
         fetchStats();
 
         // Create notification channel and check permissions
         createNotificationChannel();
         checkNotificationPermission();
+
+        // Subscribe to admin FCM topic
+        com.google.firebase.messaging.FirebaseMessaging.getInstance().subscribeToTopic("admin_alerts")
+            .addOnCompleteListener(task -> {
+                if (task.isSuccessful()) {
+                    android.util.Log.d("FCM", "Subscribed to admin_alerts topic successfully");
+                } else {
+                    android.util.Log.e("FCM", "Failed to subscribe to admin_alerts topic");
+                }
+            });
 
         // Search Input Listener (Debounced search)
         etSearch.addTextChangedListener(new TextWatcher() {
@@ -278,37 +301,75 @@ public class MainActivity extends AppCompatActivity implements
             fetchOwners("");
         });
 
-        // Top Header Settings Button -> Switches to Tab 3
+        // Top Header Settings Button -> Switches to Settings Tab (Tab 3)
         btnSettings.setOnClickListener(v -> {
-            bottomNav.setSelectedItemId(R.id.nav_telegram);
+            bottomNav.setSelectedItemId(R.id.nav_settings);
+        });
+
+        // Dashboard Stat Card Clicks -> Switch to correct tabs
+        cardStatActive.setOnClickListener(v -> {
+            bottomNav.setSelectedItemId(R.id.nav_owners);
+        });
+        cardStatPending.setOnClickListener(v -> {
+            bottomNav.setSelectedItemId(R.id.nav_owners);
+        });
+        cardStatFailedPayouts.setOnClickListener(v -> {
+            bottomNav.setSelectedItemId(R.id.nav_transactions);
+            chipGroupTransactions.check(R.id.chipTogglePayouts);
+            chipGroupPayoutStatus.check(R.id.chipFailed);
+        });
+        cardStatRefunds.setOnClickListener(v -> {
+            bottomNav.setSelectedItemId(R.id.nav_transactions);
+            chipGroupTransactions.check(R.id.chipToggleRefunds);
+            chipGroupRefundStatus.check(R.id.chipRefundPending);
         });
 
         // Bottom Navigation Selector
         bottomNav.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
-            if (itemId == R.id.nav_owners) {
+            if (itemId == R.id.nav_dashboard) {
+                showTab(0);
+                fetchStats();
+                return true;
+            } else if (itemId == R.id.nav_owners) {
                 showTab(1);
                 fetchOwners(etSearch.getText().toString().trim());
                 fetchStats();
                 return true;
-            } else if (itemId == R.id.nav_payouts) {
+            } else if (itemId == R.id.nav_transactions) {
                 showTab(2);
-                loadPayoutsBySelectedChip();
+                int checkedToggleId = chipGroupTransactions.getCheckedChipId();
+                if (checkedToggleId == R.id.chipTogglePayouts) {
+                    layoutPayouts.setVisibility(View.VISIBLE);
+                    layoutRefunds.setVisibility(View.GONE);
+                    loadPayoutsBySelectedChip();
+                } else {
+                    layoutPayouts.setVisibility(View.GONE);
+                    layoutRefunds.setVisibility(View.VISIBLE);
+                    loadRefundsBySelectedChip();
+                }
                 return true;
-            } else if (itemId == R.id.nav_refunds) {
-                showTab(4);
-                loadRefundsBySelectedChip();
-                return true;
-            } else if (itemId == R.id.nav_telegram) {
+            } else if (itemId == R.id.nav_settings) {
                 showTab(3);
                 syncSettingsFields();
-                return true;
-            } else if (itemId == R.id.nav_cms) {
-                showTab(5);
                 fetchOwnersForCms();
                 return true;
             }
             return false;
+        });
+
+        // Unified Transaction Toggle
+        chipGroupTransactions.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            int checkedId = group.getCheckedChipId();
+            if (checkedId == R.id.chipTogglePayouts) {
+                layoutPayouts.setVisibility(View.VISIBLE);
+                layoutRefunds.setVisibility(View.GONE);
+                loadPayoutsBySelectedChip();
+            } else if (checkedId == R.id.chipToggleRefunds) {
+                layoutPayouts.setVisibility(View.GONE);
+                layoutRefunds.setVisibility(View.VISIBLE);
+                loadRefundsBySelectedChip();
+            }
         });
 
         // Payouts Chip Filter Selection
@@ -329,11 +390,10 @@ public class MainActivity extends AppCompatActivity implements
     }
 
     private void showTab(int tabIndex) {
+        layoutDashboard.setVisibility(tabIndex == 0 ? View.VISIBLE : View.GONE);
         layoutOwners.setVisibility(tabIndex == 1 ? View.VISIBLE : View.GONE);
-        layoutPayouts.setVisibility(tabIndex == 2 ? View.VISIBLE : View.GONE);
-        layoutTelegram.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
-        layoutRefunds.setVisibility(tabIndex == 4 ? View.VISIBLE : View.GONE);
-        layoutCms.setVisibility(tabIndex == 5 ? View.VISIBLE : View.GONE);
+        layoutTransactions.setVisibility(tabIndex == 2 ? View.VISIBLE : View.GONE);
+        layoutSettings.setVisibility(tabIndex == 3 ? View.VISIBLE : View.GONE);
         tvEmptyState.setVisibility(View.GONE);
     }
 
@@ -369,8 +429,8 @@ public class MainActivity extends AppCompatActivity implements
 
         Toast.makeText(this, "Configuration Saved!", Toast.LENGTH_SHORT).show();
         
-        // Go back to owners tab
-        bottomNav.setSelectedItemId(R.id.nav_owners);
+        // Go back to Dashboard tab
+        bottomNav.setSelectedItemId(R.id.nav_dashboard);
     }
 
     private void fetchStats() {
@@ -470,9 +530,9 @@ public class MainActivity extends AppCompatActivity implements
     @Override
     public void onRetryPayout(Payout payout) {
         new AlertDialog.Builder(this)
-                .setTitle("Retry Payout")
-                .setMessage("Are you sure you want to execute manual payout retry for Booking #" + payout.getBookingId() + "?\n\nOwner: " + payout.getOwnerName() + "\nShare: " + payout.getOwnerShare())
-                .setPositiveButton("Retry", (dialog, which) -> {
+                .setTitle("Resolve Payout")
+                .setMessage("Choose how you want to resolve the payout for Booking #" + payout.getBookingId() + "?\n\nOwner: " + payout.getOwnerName() + "\nShare: " + payout.getOwnerShare() + "\nUPI: " + payout.getOwnerUpiId())
+                .setPositiveButton("Auto Retry", (dialog, which) -> {
                     loader.setVisibility(View.VISIBLE);
                     apiService.retryPayout(payout.getId()).enqueue(new Callback<PayoutRetryResponse>() {
                         @Override
@@ -486,6 +546,28 @@ public class MainActivity extends AppCompatActivity implements
                                 fetchStats();
                             } else {
                                 Toast.makeText(MainActivity.this, "Failed to retry payout. Code: " + response.code(), Toast.LENGTH_LONG).show();
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(Call<PayoutRetryResponse> call, Throwable t) {
+                            loader.setVisibility(View.GONE);
+                            Toast.makeText(MainActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+                        }
+                    });
+                })
+                .setNeutralButton("Settle Manually", (dialog, which) -> {
+                    loader.setVisibility(View.VISIBLE);
+                    apiService.settlePayoutManually(payout.getId()).enqueue(new Callback<PayoutRetryResponse>() {
+                        @Override
+                        public void onResponse(Call<PayoutRetryResponse> call, Response<PayoutRetryResponse> response) {
+                            loader.setVisibility(View.GONE);
+                            if (response.isSuccessful() && response.body() != null) {
+                                Toast.makeText(MainActivity.this, "Success: Payout marked as manually settled!", Toast.LENGTH_LONG).show();
+                                loadPayoutsBySelectedChip();
+                                fetchStats();
+                            } else {
+                                Toast.makeText(MainActivity.this, "Failed to settle manually. Code: " + response.code(), Toast.LENGTH_LONG).show();
                             }
                         }
 
@@ -535,33 +617,118 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onApprove(Owner owner) {
-        new AlertDialog.Builder(this)
-                .setTitle("Approve Owner")
-                .setMessage(getString(R.string.approve_confirm))
-                .setPositiveButton("Approve", (dialog, which) -> {
-                    loader.setVisibility(View.VISIBLE);
-                    apiService.approveOwner(owner.getId()).enqueue(new Callback<Void>() {
-                        @Override
-                        public void onResponse(Call<Void> call, Response<Void> response) {
-                            loader.setVisibility(View.GONE);
-                            if (response.isSuccessful()) {
-                                Toast.makeText(MainActivity.this, "Owner Approved Successfully!", Toast.LENGTH_SHORT).show();
-                                fetchOwners(etSearch.getText().toString().trim());
-                                fetchStats();
-                            } else {
-                                Toast.makeText(MainActivity.this, "Failed to approve owner. Code: " + response.code(), Toast.LENGTH_LONG).show();
-                            }
-                        }
+        final EditText input = new EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        input.setHint("acc_XXXXXXXXXXXXXXXX");
+        if (owner.getRazorpayContactId() != null) {
+            input.setText(owner.getRazorpayContactId());
+        }
 
-                        @Override
-                        public void onFailure(Call<Void> call, Throwable t) {
-                            loader.setVisibility(View.GONE);
-                            Toast.makeText(MainActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
-                        }
-                    });
+        // Set padding inside the dialog view
+        FrameLayout container = new FrameLayout(this);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        int margin = (int) (16 * getResources().getDisplayMetrics().density);
+        params.leftMargin = margin;
+        params.rightMargin = margin;
+        input.setLayoutParams(params);
+        container.addView(input);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Approve Turf Owner")
+                .setMessage("Enter the Razorpay Route Linked Account ID (e.g. acc_XXXXXXXXXXXXXXXX) to automate splits, or leave it empty for manual payouts:")
+                .setView(container)
+                .setPositiveButton("Approve", (dialog, which) -> {
+                    String routeId = input.getText().toString().trim();
+                    if (routeId.isEmpty()) {
+                        routeId = null;
+                    }
+                    approveOwnerWithRouteId(owner, routeId);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void approveOwnerWithRouteId(Owner owner, String routeId) {
+        loader.setVisibility(View.VISIBLE);
+        apiService.approveOwner(owner.getId(), routeId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                loader.setVisibility(View.GONE);
+                if (response.isSuccessful()) {
+                    Toast.makeText(MainActivity.this, "Owner Approved Successfully!", Toast.LENGTH_SHORT).show();
+                    fetchOwners(etSearch.getText().toString().trim());
+                    fetchStats();
+                } else {
+                    Toast.makeText(MainActivity.this, "Failed to approve owner. Code: " + response.code(), Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                loader.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
+    @Override
+    public void onLinkRoute(Owner owner) {
+        final EditText input = new EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        input.setHint("acc_XXXXXXXXXXXXXXXX");
+        if (owner.getRazorpayContactId() != null) {
+            input.setText(owner.getRazorpayContactId());
+        }
+
+        FrameLayout container = new FrameLayout(this);
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        int margin = (int) (16 * getResources().getDisplayMetrics().density);
+        params.leftMargin = margin;
+        params.rightMargin = margin;
+        input.setLayoutParams(params);
+        container.addView(input);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Link Razorpay Route ID")
+                .setMessage("Enter or update the Linked Account ID (format: acc_XXXXXXXXXXXXXXXX) for this turf:")
+                .setView(container)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String routeId = input.getText().toString().trim();
+                    if (routeId.isEmpty()) {
+                        routeId = null;
+                    }
+                    updateRouteAccountApi(owner, routeId);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void updateRouteAccountApi(Owner owner, String routeId) {
+        loader.setVisibility(View.VISIBLE);
+        apiService.updateRouteAccount(owner.getId(), routeId).enqueue(new Callback<Void>() {
+            @Override
+            public void onResponse(Call<Void> call, Response<Void> response) {
+                loader.setVisibility(View.GONE);
+                if (response.isSuccessful()) {
+                    Toast.makeText(MainActivity.this, "Route Account ID updated successfully!", Toast.LENGTH_SHORT).show();
+                    fetchOwners(etSearch.getText().toString().trim());
+                } else {
+                    Toast.makeText(MainActivity.this, "Failed to update Route ID. Code: " + response.code(), Toast.LENGTH_LONG).show();
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Void> call, Throwable t) {
+                loader.setVisibility(View.GONE);
+                Toast.makeText(MainActivity.this, "Network Error: " + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     @Override

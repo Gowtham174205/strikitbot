@@ -15,7 +15,6 @@
         android:layout_height="wrap_content"
         app:cardBackgroundColor="@color/card_dark"
         app:cardElevation="4dp"
-        app:cardMaxElevation="4dp"
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
@@ -27,7 +26,7 @@
                 android:id="@+id/tvHeaderTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/title_admin"
+                android:text="STRIKIT Admin"
                 android:textColor="@color/primary_neon"
                 android:textSize="20sp"
                 android:textStyle="bold"
@@ -41,7 +40,7 @@
                 android:layout_height="40dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:src="@android:drawable/ic_menu_preferences"
-                android:contentDescription="@string/settings_title"
+                android:contentDescription="Settings Shortcut"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -50,52 +49,87 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
     </androidx.cardview.widget.CardView>
 
-    <!-- TAB 1: Owners/Turfs Layout -->
-    <LinearLayout
-        android:id="@+id/layoutOwners"
+    <!-- CONTAINER 1: Dashboard Tab (layoutDashboard) -->
+    <ScrollView
+        android:id="@+id/layoutDashboard"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:orientation="vertical"
+        android:fillViewport="true"
         android:visibility="visible"
         app:layout_constraintTop_toBottomOf="@id/headerCard"
         app:layout_constraintBottom_toTopOf="@id/bottomNav">
 
-        <!-- Stats Horizontal Scroll -->
-        <HorizontalScrollView
-            android:id="@+id/statsScrollView"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:clipToPadding="false"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:layout_marginTop="12dp">
+            android:orientation="vertical"
+            android:padding="16dp">
 
-            <LinearLayout
-                android:layout_width="wrap_content"
+            <!-- Greeting Banner -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <!-- Active Turfs Stat Card -->
-                <androidx.cardview.widget.CardView
-                    android:layout_width="120dp"
+                android:layout_marginBottom="20dp"
+                app:cardBackgroundColor="@color/card_dark"
+                app:cardCornerRadius="14dp"
+                app:cardElevation="2dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginVertical="4dp"
+                    android:orientation="vertical"
+                    android:padding="20dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Welcome, STRIKIT Admin! 👋"
+                        android:textColor="@color/text_primary"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Quick overview of your turf platform status today."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <!-- Grid Layout for Stats Cards -->
+            <GridLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="2"
+                android:rowCount="2"
+                android:useDefaultMargins="true"
+                android:alignmentMode="alignBounds"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="24dp">
+
+                <!-- Card 1: Active Turfs -->
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardStatActive"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
                     app:cardBackgroundColor="@color/card_dark"
-                    app:cardCornerRadius="8dp"
+                    app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:padding="16dp">
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Active Turfs"
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
                             android:id="@+id/tvStatActive"
@@ -103,32 +137,43 @@
                             android:layout_height="wrap_content"
                             android:text="-"
                             android:textColor="@color/primary_neon"
-                            android:textSize="20sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Manage list →"
+                            android:textColor="@color/primary_neon"
+                            android:textSize="10sp"
                             android:layout_marginTop="4dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Pending Verifications Stat Card -->
+                <!-- Card 2: Pending Approvals -->
                 <androidx.cardview.widget.CardView
-                    android:layout_width="120dp"
+                    android:id="@+id/cardStatPending"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginVertical="4dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
                     app:cardBackgroundColor="@color/card_dark"
-                    app:cardCornerRadius="8dp"
+                    app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:padding="16dp">
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="Pending"
+                            android:text="Pending Approvals"
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
                             android:id="@+id/tvStatPending"
@@ -136,32 +181,43 @@
                             android:layout_height="wrap_content"
                             android:text="-"
                             android:textColor="@color/status_pending"
-                            android:textSize="20sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Approve owners →"
+                            android:textColor="@color/status_pending"
+                            android:textSize="10sp"
                             android:layout_marginTop="4dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Failed Payouts Stat Card -->
+                <!-- Card 3: Failed Payouts -->
                 <androidx.cardview.widget.CardView
-                    android:layout_width="120dp"
+                    android:id="@+id/cardStatFailedPayouts"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_marginVertical="4dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
                     app:cardBackgroundColor="@color/card_dark"
-                    app:cardCornerRadius="8dp"
+                    app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:padding="16dp">
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Failed Payouts"
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
                             android:id="@+id/tvStatFailedPayouts"
@@ -169,48 +225,109 @@
                             android:layout_height="wrap_content"
                             android:text="-"
                             android:textColor="@color/status_inactive"
-                            android:textSize="20sp"
+                            android:textSize="28sp"
                             android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Manual settle →"
+                            android:textColor="@color/status_inactive"
+                            android:textSize="10sp"
                             android:layout_marginTop="4dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-                <!-- Refund Requests Stat Card -->
+                <!-- Card 4: Refund Requests -->
                 <androidx.cardview.widget.CardView
-                    android:layout_width="120dp"
+                    android:id="@+id/cardStatRefunds"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginVertical="4dp"
+                    android:layout_columnWeight="1"
+                    android:layout_margin="6dp"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?android:attr/selectableItemBackground"
                     app:cardBackgroundColor="@color/card_dark"
-                    app:cardCornerRadius="8dp"
+                    app:cardCornerRadius="12dp"
                     app:cardElevation="2dp">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
-                        android:padding="12dp">
+                        android:padding="16dp">
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Refund Req."
                             android:textColor="@color/text_secondary"
-                            android:textSize="11sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
                             android:id="@+id/tvStatRefunds"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="-"
-                            android:textColor="@color/status_pending"
-                            android:textSize="20sp"
+                            android:textColor="@color/accent_blue"
+                            android:textSize="28sp"
                             android:textStyle="bold"
+                            android:layout_marginTop="8dp" />
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Resolve issues →"
+                            android:textColor="@color/accent_blue"
+                            android:textSize="10sp"
                             android:layout_marginTop="4dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
-            </LinearLayout>
-        </HorizontalScrollView>
+            </GridLayout>
 
-        <!-- Search Section -->
+            <!-- Dashboard Tips Section -->
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:cardBackgroundColor="@color/card_dark"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="💡 Quick Guide"
+                        android:textColor="@color/accent_blue"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="• To approve new turfs, tap 'Pending Approvals' card or navigate to the 'Turfs' tab.\n• To record GPay/UPI transfers to owners, tap 'Failed Payouts' card and select 'Settle Manually'.\n• Use the 'Settings' tab to export PDF reports or modify server links."
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:lineSpacingExtra="4dp"
+                        android:layout_marginTop="8dp" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- CONTAINER 2: Turfs Tab (layoutOwners) -->
+    <LinearLayout
+        android:id="@+id/layoutOwners"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:orientation="vertical"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/headerCard"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav">
+
+        <!-- Search Card -->
         <androidx.cardview.widget.CardView
             android:id="@+id/searchCard"
             android:layout_width="match_parent"
@@ -265,7 +382,7 @@
             </LinearLayout>
         </androidx.cardview.widget.CardView>
 
-        <!-- Owners List -->
+        <!-- Owners Recycler View -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/rvOwners"
             android:layout_width="match_parent"
@@ -275,9 +392,9 @@
             tools:listitem="@layout/item_owner" />
     </LinearLayout>
 
-    <!-- TAB 2: Payouts Layout -->
+    <!-- CONTAINER 3: Transactions Tab (layoutTransactions) -->
     <LinearLayout
-        android:id="@+id/layoutPayouts"
+        android:id="@+id/layoutTransactions"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:orientation="vertical"
@@ -285,140 +402,174 @@
         app:layout_constraintTop_toBottomOf="@id/headerCard"
         app:layout_constraintBottom_toTopOf="@id/bottomNav">
 
-        <!-- Status Filter Chips -->
-        <HorizontalScrollView
+        <!-- Unified toggle chips for payouts vs refunds -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipGroupTransactions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:clipToPadding="false"
             android:paddingHorizontal="16dp"
-            android:paddingVertical="8dp">
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupPayoutStatus"
+            android:paddingVertical="8dp"
+            app:singleSelection="true"
+            app:checkedChip="@+id/chipTogglePayouts">
+            
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipTogglePayouts"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:checkedChip="@+id/chipAll">
-                
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipAll"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="ALL"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
+                android:text="🪙 Owner Payouts"
+                app:chipBackgroundColor="@color/btn_grey"
+                android:textColor="@color/text_primary"/>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipProcessing"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="PROCESSING"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipCompleted"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="COMPLETED"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipFailed"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="FAILED"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
-            </com.google.android.material.chip.ChipGroup>
-        </HorizontalScrollView>
-
-        <!-- Payouts RecyclerView -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvPayouts"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:padding="8dp"
-            tools:listitem="@layout/item_payout" />
-    </LinearLayout>
-
-    <!-- TAB 4: Refund Requests Layout -->
-    <LinearLayout
-        android:id="@+id/layoutRefunds"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/headerCard"
-        app:layout_constraintBottom_toTopOf="@id/bottomNav">
-
-        <!-- Status Filter Chips -->
-        <HorizontalScrollView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:scrollbars="none"
-            android:clipToPadding="false"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="8dp">
-            <com.google.android.material.chip.ChipGroup
-                android:id="@+id/chipGroupRefundStatus"
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipToggleRefunds"
+                style="@style/Widget.MaterialComponents.Chip.Choice"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                app:singleSelection="true"
-                app:checkedChip="@+id/chipRefundPending">
-                
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipRefundPending"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="PENDING"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
+                android:text="💸 Player Refunds"
+                app:chipBackgroundColor="@color/btn_grey"
+                android:textColor="@color/text_primary"/>
+        </com.google.android.material.chip.ChipGroup>
 
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipRefundResolved"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="RESOLVED"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
-
-                <com.google.android.material.chip.Chip
-                    android:id="@+id/chipRefundRejected"
-                    style="@style/Widget.MaterialComponents.Chip.Choice"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="REJECTED"
-                    app:chipBackgroundColor="@color/btn_grey"
-                    android:textColor="@color/text_primary"/>
-            </com.google.android.material.chip.ChipGroup>
-        </HorizontalScrollView>
-
-        <!-- Refund Requests RecyclerView -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvRefunds"
+        <!-- Nested Payouts View (shown when TogglePayouts is selected) -->
+        <LinearLayout
+            android:id="@+id/layoutPayouts"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:padding="8dp"
-            tools:listitem="@layout/item_refund_request" />
+            android:orientation="vertical"
+            android:visibility="visible">
+
+            <!-- Filter chips for Payout status -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:clipToPadding="false"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="4dp">
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupPayoutStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:singleSelection="true"
+                    app:checkedChip="@+id/chipAll">
+                    
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipAll"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ALL"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipProcessing"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PROCESSING"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipCompleted"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="COMPLETED"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipFailed"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="FAILED"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+                </com.google.android.material.chip.ChipGroup>
+            </HorizontalScrollView>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvPayouts"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="8dp"
+                tools:listitem="@layout/item_payout" />
+        </LinearLayout>
+
+        <!-- Nested Refunds View (shown when ToggleRefunds is selected) -->
+        <LinearLayout
+            android:id="@+id/layoutRefunds"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Filter chips for Refund status -->
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:clipToPadding="false"
+                android:paddingHorizontal="16dp"
+                android:paddingBottom="4dp">
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupRefundStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:singleSelection="true"
+                    app:checkedChip="@+id/chipRefundPending">
+                    
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipRefundPending"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PENDING"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipRefundResolved"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="RESOLVED"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipRefundRejected"
+                        style="@style/Widget.MaterialComponents.Chip.Choice"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="REJECTED"
+                        app:chipBackgroundColor="@color/btn_grey"
+                        android:textColor="@color/text_primary"/>
+                </com.google.android.material.chip.ChipGroup>
+            </HorizontalScrollView>
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvRefunds"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:padding="8dp"
+                tools:listitem="@layout/item_refund_request" />
+        </LinearLayout>
     </LinearLayout>
 
-    <!-- TAB 3: Telegram Settings Layout -->
+    <!-- CONTAINER 4: Settings & Reports Tab (layoutSettings) -->
     <ScrollView
-        android:id="@+id/layoutTelegram"
+        android:id="@+id/layoutSettings"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:visibility="gone"
         android:fillViewport="true"
+        android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@id/headerCard"
         app:layout_constraintBottom_toTopOf="@id/bottomNav">
 
@@ -428,7 +579,7 @@
             android:orientation="vertical"
             android:padding="16dp">
 
-            <!-- Card: API Configuration -->
+            <!-- Card 1: API Config -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -494,10 +645,11 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Card: Telegram Webhook Registration -->
+            <!-- Card 2: Telegram Webhook -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
                 app:cardBackgroundColor="@color/card_dark"
                 app:cardCornerRadius="12dp"
                 app:cardElevation="2dp">
@@ -520,7 +672,7 @@
                     <TextView
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Register or update the Telegram Bot Webhook URL on the server to start receiving player join requests and group match messages."
+                        android:text="Register or update the Telegram Bot Webhook URL on the server to start receiving player join requests."
                         android:textColor="@color/text_secondary"
                         android:textSize="13sp"
                         android:layout_marginBottom="16dp" />
@@ -535,26 +687,7 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-        </LinearLayout>
-    </ScrollView>
-
-    <!-- TAB 5: CMS & Reports Center Layout -->
-    <ScrollView
-        android:id="@+id/layoutCms"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        android:fillViewport="true"
-        app:layout_constraintTop_toBottomOf="@id/headerCard"
-        app:layout_constraintBottom_toTopOf="@id/bottomNav">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <!-- Card: CMS & Reports -->
+            <!-- Card 3: Reports Center (old layoutCms) -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -571,13 +704,12 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="CMS &amp; REPORTS CENTER"
+                        android:text="REPORTS CENTER"
                         android:textColor="@color/primary_neon"
                         android:textSize="14sp"
                         android:textStyle="bold"
                         android:layout_marginBottom="16dp" />
 
-                    <!-- Report Type Selector -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -593,7 +725,6 @@
                         android:backgroundTint="@color/text_primary"
                         android:layout_marginBottom="16dp" />
 
-                    <!-- Turf Autocomplete Search -->
                     <TextView
                         android:id="@+id/tvTurfLabel"
                         android:layout_width="wrap_content"
@@ -614,7 +745,6 @@
                         android:completionThreshold="1"
                         android:layout_marginBottom="16dp"/>
 
-                    <!-- Date Range Selection -->
                     <TextView
                         android:id="@+id/tvDateRangeLabel"
                         android:layout_width="wrap_content"
@@ -678,6 +808,7 @@
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
+
         </LinearLayout>
     </ScrollView>
 
@@ -704,12 +835,12 @@
         app:layout_constraintTop_toTopOf="parent"
         android:indeterminateTint="@color/primary_neon" />
 
-    <!-- Empty State Text (Generic/Overlay fallback) -->
+    <!-- Empty State Text -->
     <TextView
         android:id="@+id/tvEmptyState"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="No owners found."
+        android:text="No data found."
         android:textColor="@color/text_secondary"
         android:textSize="16sp"
         android:visibility="gone"

@@ -76,34 +76,20 @@ async def execute_payout(
     owner,
     amount_paise: int,
     booking_id: int,
+    payment_id: str = None,
     db_session=None,
 ) -> dict:
     """
-    Execute a UPI payout to owner via RazorpayX.
-
-    Args:
-        owner: BotOwner ORM object (with id, name, mobile, upiId, razorpayContactId, etc.)
-        amount_paise: Owner's share in INTEGER PAISE (not rupees!)
-        booking_id: Booking ID for reference
-        db_session: Optional async DB session for caching contact/fund account IDs
-
-    Returns:
-        dict with payoutId, status, simulated, reason (if failed/manual_review)
+    Execute turf payout split.
+    If owner has a Razorpay Route Linked Account ID (acc_...), splits payment via Razorpay Route.
+    Otherwise, returns MANUAL_REVIEW for manual UPI payout.
     """
+    is_route = owner.razorpayContactId and owner.razorpayContactId.strip().startswith("acc_")
+
     logger.info(
         f"[Payout] Initiating ₹{amount_paise / 100:.2f} payout to "
-        f"owner {owner.name} (UPI: {owner.upiId})"
+        f"owner {owner.name} (Route ID: {owner.razorpayContactId if is_route else 'None'}, UPI: {owner.upiId})"
     )
-
-    # ── Safety Guard: Validate UPI ID ──
-    if not owner.upiId or not validate_upi_id(owner.upiId):
-        logger.warning(f"[Payout] Invalid UPI ID for owner {owner.id}: '{owner.upiId}'")
-        return {
-            "payoutId": None,
-            "status": "MANUAL_REVIEW",
-            "simulated": False,
-            "reason": f"Invalid or missing UPI ID: '{owner.upiId}'",
-        }
 
     # ── Safety Guard: Amount must be positive integer ──
     if not isinstance(amount_paise, int) or amount_paise <= 0:
@@ -114,78 +100,65 @@ async def execute_payout(
             "reason": f"Invalid payout amount: {amount_paise} paise",
         }
 
-    # ── Mock mode ──
-    if not settings.razorpayx_configured:
-        logger.info(f"[Payout] MOCK payout of ₹{amount_paise / 100:.2f} to UPI: {owner.upiId}")
+    # ── Mock mode (Standard Razorpay not configured) ──
+    if not settings.razorpay_configured:
+        logger.info(f"[Payout] MOCK split payout of ₹{amount_paise / 100:.2f} to Linked Account: {owner.razorpayContactId if is_route else 'manual'}")
         return {
             "payoutId": f"pout_mock_{hash(str(booking_id)) % 100000}",
-            "status": "processed",
+            "status": "COMPLETED",
             "simulated": True,
         }
 
-    try:
-        # 1. Create/cache Contact
-        contact_id = owner.razorpayContactId
-        if not contact_id:
-            logger.info(f"[Payout] Creating contact for owner {owner.id}")
-            contact_id = await create_contact(
-                name=owner.name,
-                mobile=owner.mobile,
-                reference_id=f"owner_{owner.id}",
-            )
-            if db_session:
-                owner.razorpayContactId = contact_id
-                await db_session.commit()
+    # ── Case A: Razorpay Route Split Payment ──
+    if is_route:
+        if not payment_id:
+            logger.warning(f"[Payout Route] Missing payment_id for Route split (booking #{booking_id})")
+            return {
+                "payoutId": None,
+                "status": "MANUAL_REVIEW",
+                "simulated": False,
+                "reason": "Missing payment_id for Razorpay Route split transfer",
+            }
+        
+        try:
+            import razorpay
+            client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+            
+            transfer_payload = {
+                "transfers": [
+                    {
+                        "account": owner.razorpayContactId.strip(),
+                        "amount": amount_paise,
+                        "currency": "INR",
+                    }
+                ]
+            }
+            logger.info(f"[Payout Route] Creating Route transfer for payment {payment_id} to Linked Account {owner.razorpayContactId.strip()}")
+            
+            transfer_response = client.payment.fetch(payment_id).transfer(transfer_payload)
+            transfers_list = transfer_response.get("items", [])
+            transfer_id = transfers_list[0].get("id") if transfers_list else f"trns_{booking_id}"
+            
+            logger.info(f"[Payout Route] Transfer success: {transfer_id}")
+            return {
+                "payoutId": transfer_id,
+                "status": "COMPLETED",
+                "simulated": False,
+            }
+        except Exception as e:
+            logger.error(f"[Payout Route] Transfer failed for payment {payment_id}: {e}")
+            return {
+                "payoutId": None,
+                "status": "FAILED",
+                "simulated": False,
+                "reason": f"Razorpay Route Split failed: {e}",
+            }
 
-        # 2. Create/cache Fund Account
-        fund_account_id = owner.razorpayFundAccountId
-        if not fund_account_id:
-            logger.info(f"[Payout] Creating fund account for owner {owner.id}")
-            try:
-                fund_account_id = await create_fund_account(contact_id, owner.upiId)
-                if db_session:
-                    owner.razorpayFundAccountId = fund_account_id
-                    await db_session.commit()
-            except Exception as fa_err:
-                logger.error(f"[Payout] Fund account creation failed: {fa_err}")
-                return {
-                    "payoutId": None,
-                    "status": "MANUAL_REVIEW",
-                    "simulated": False,
-                    "reason": f"Fund account creation failed: {fa_err}",
-                }
-
-        # 3. Execute RazorpayX Payout
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                "https://api.razorpay.com/v1/payouts",
-                json={
-                    "account_number": settings.RAZORPAYX_ACCOUNT_NUMBER,
-                    "fund_account_id": fund_account_id,
-                    "amount": amount_paise,  # Already in paise — NO conversion!
-                    "currency": "INR",
-                    "mode": "UPI",
-                    "purpose": "vendor bill",
-                    "queue_if_low_balance": True,
-                    "reference_id": f"booking_{booking_id}",
-                },
-                headers={"Authorization": _auth_header(), "Content-Type": "application/json"},
-            )
-            resp.raise_for_status()
-            data = resp.json()
-
-        logger.info(f"[Payout] Success. Payout ID: {data['id']}, Status: {data['status']}")
-        return {
-            "payoutId": data["id"],
-            "status": data["status"],
-            "simulated": False,
-        }
-
-    except Exception as e:
-        logger.error(f"[Payout] Execution failed: {e}")
-        return {
-            "payoutId": None,
-            "status": "FAILED",
-            "simulated": False,
-            "reason": str(e),
-        }
+    # ── Case B: Manual UPI Payout (No Route ID configured) ──
+    logger.info(f"[Payout] Route Linked Account not set for owner {owner.id}. Falling back to manual payout.")
+    return {
+        "payoutId": None,
+        "status": "MANUAL_REVIEW",
+        "simulated": False,
+        "reason": "Manual Payout Required (Razorpay Route ID not configured)",
+    }

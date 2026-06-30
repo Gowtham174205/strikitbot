@@ -1,23 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
+        android:id="@+id/nav_dashboard"
+        android:icon="@drawable/ic_dashboard"
+        android:title="Dashboard" />
+    <item
         android:id="@+id/nav_owners"
-        android:icon="@drawable/ic_owners"
+        android:icon="@drawable/ic_turf"
         android:title="Turfs" />
     <item
-        android:id="@+id/nav_payouts"
-        android:icon="@drawable/ic_payouts"
-        android:title="Payouts" />
+        android:id="@+id/nav_transactions"
+        android:icon="@drawable/ic_transaction"
+        android:title="Transactions" />
     <item
-        android:id="@+id/nav_refunds"
-        android:icon="@drawable/ic_refund"
-        android:title="Refunds" />
-    <item
-        android:id="@+id/nav_telegram"
-        android:icon="@drawable/ic_webhooks"
-        android:title="Telegram" />
-    <item
-        android:id="@+id/nav_cms"
-        android:icon="@drawable/ic_cms"
-        android:title="CMS" />
+        android:id="@+id/nav_settings"
+        android:icon="@drawable/ic_settings"
+        android:title="Settings" />
 </menu>

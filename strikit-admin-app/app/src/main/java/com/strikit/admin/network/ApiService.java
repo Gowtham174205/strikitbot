@@ -19,7 +19,16 @@ public interface ApiService {
     Call<List<Owner>> getOwners(@Query("search") String searchQuery);
 
     @POST("owners/{id}/approve")
-    Call<Void> approveOwner(@Path("id") int id);
+    Call<Void> approveOwner(
+        @Path("id") int id,
+        @Query("route_account_id") String routeAccountId
+    );
+
+    @POST("owners/{id}/route_account")
+    Call<Void> updateRouteAccount(
+        @Path("id") int id,
+        @Query("route_account_id") String routeAccountId
+    );
 
     @POST("owners/{id}/reject")
     Call<Void> rejectOwner(@Path("id") int id);
@@ -35,6 +44,9 @@ public interface ApiService {
 
     @POST("payouts/{payout_id}/retry")
     Call<PayoutRetryResponse> retryPayout(@Path("payout_id") int payoutId);
+
+    @POST("payouts/{payout_id}/settle_manually")
+    Call<PayoutRetryResponse> settlePayoutManually(@Path("payout_id") int payoutId);
 
     @POST("telegram/setup-webhook")
     Call<TelegramWebhookResponse> setupTelegramWebhook();

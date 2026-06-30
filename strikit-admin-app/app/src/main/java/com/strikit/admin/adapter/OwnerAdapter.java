@@ -23,6 +23,7 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
         void onApprove(Owner owner);
         void onReject(Owner owner);
         void onDelete(Owner owner);
+        void onLinkRoute(Owner owner);
     }
 
     private List<Owner> ownersList = new ArrayList<>();
@@ -64,7 +65,14 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
         }
 
         if (owner.getLocation() != null && !owner.getLocation().isEmpty()) {
-            String linkText = "<a href=\"" + owner.getLocation() + "\">View on Google Maps</a>";
+            String mapsUrl = owner.getLocation();
+            if (mapsUrl.startsWith("location:")) {
+                String coords = mapsUrl.replace("location:", "").trim();
+                mapsUrl = "https://www.google.com/maps/search/?api=1&query=" + coords;
+            } else if (!mapsUrl.startsWith("http://") && !mapsUrl.startsWith("https://")) {
+                mapsUrl = "https://www.google.com/maps/search/?api=1&query=" + android.net.Uri.encode(mapsUrl);
+            }
+            String linkText = "<a href=\"" + mapsUrl + "\">View on Google Maps</a>";
             holder.tvLocation.setText(Html.fromHtml("Location: " + linkText, Html.FROM_HTML_MODE_COMPACT));
             holder.tvLocation.setMovementMethod(LinkMovementMethod.getInstance());
             holder.tvLocation.setVisibility(View.VISIBLE);
@@ -94,6 +102,40 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
             holder.tvUtilityBill.setVisibility(View.VISIBLE);
         } else {
             holder.tvUtilityBill.setVisibility(View.GONE);
+        }
+
+        // Bind Turf Photos
+        if (owner.getPhotoUrls() != null && !owner.getPhotoUrls().isEmpty()) {
+            try {
+                com.google.gson.JsonArray array = new com.google.gson.JsonParser().parse(owner.getPhotoUrls()).getAsJsonArray();
+                if (array.size() > 0) {
+                    StringBuilder sb = new StringBuilder("Turf Photos: ");
+                    for (int i = 0; i < array.size(); i++) {
+                        String url = array.get(i).getAsString();
+                        if (i > 0) {
+                            sb.append(" | ");
+                        }
+                        sb.append("<a href=\"").append(url).append("\">Photo ").append(i + 1).append("</a>");
+                    }
+                    holder.tvPhotos.setText(Html.fromHtml(sb.toString(), Html.FROM_HTML_MODE_COMPACT));
+                    holder.tvPhotos.setMovementMethod(LinkMovementMethod.getInstance());
+                    holder.tvPhotos.setVisibility(View.VISIBLE);
+                } else {
+                    holder.tvPhotos.setVisibility(View.GONE);
+                }
+            } catch (Exception e) {
+                String url = owner.getPhotoUrls();
+                if (url.startsWith("http")) {
+                    String linkText = "<a href=\"" + url + "\">View Photo</a>";
+                    holder.tvPhotos.setText(Html.fromHtml("Turf Photos: " + linkText, Html.FROM_HTML_MODE_COMPACT));
+                    holder.tvPhotos.setMovementMethod(LinkMovementMethod.getInstance());
+                    holder.tvPhotos.setVisibility(View.VISIBLE);
+                } else {
+                    holder.tvPhotos.setVisibility(View.GONE);
+                }
+            }
+        } else {
+            holder.tvPhotos.setVisibility(View.GONE);
         }
 
         // Verification Badge Styling
@@ -137,7 +179,21 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
             holder.tvExpiryDate.setVisibility(View.GONE);
         }
 
+        // Bind Route Account info
+        if (owner.getRazorpayContactId() != null && !owner.getRazorpayContactId().trim().isEmpty()) {
+            holder.tvRouteAccount.setText("Route Account: " + owner.getRazorpayContactId());
+            holder.btnLinkRoute.setText("Edit ID");
+        } else {
+            holder.tvRouteAccount.setText("Route Account: Not configured");
+            holder.btnLinkRoute.setText("Link ID");
+        }
+
         // Wire Button Click Handlers
+        holder.btnLinkRoute.setOnClickListener(v -> {
+            if (listener != null) {
+                listener.onLinkRoute(owner);
+            }
+        });
         holder.btnApprove.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onApprove(owner);
@@ -163,9 +219,9 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
     }
 
     static class OwnerViewHolder extends RecyclerView.ViewHolder {
-        TextView tvTurfName, tvOwnerId, tvOwnerName, tvOwnerMobile, tvBusinessPhone, tvLocation, tvMsme, tvUtilityBill;
+        TextView tvTurfName, tvOwnerId, tvOwnerName, tvOwnerMobile, tvBusinessPhone, tvLocation, tvMsme, tvUtilityBill, tvPhotos, tvRouteAccount;
         TextView badgeVerified, badgeSubscription, tvExpiryDate;
-        Button btnApprove, btnReject, btnDelete;
+        Button btnApprove, btnReject, btnDelete, btnLinkRoute;
 
         public OwnerViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -177,12 +233,15 @@ public class OwnerAdapter extends RecyclerView.Adapter<OwnerAdapter.OwnerViewHol
             tvLocation = itemView.findViewById(R.id.tvLocation);
             tvMsme = itemView.findViewById(R.id.tvMsme);
             tvUtilityBill = itemView.findViewById(R.id.tvUtilityBill);
+            tvPhotos = itemView.findViewById(R.id.tvPhotos);
             badgeVerified = itemView.findViewById(R.id.badgeVerified);
             badgeSubscription = itemView.findViewById(R.id.badgeSubscription);
             tvExpiryDate = itemView.findViewById(R.id.tvExpiryDate);
+            tvRouteAccount = itemView.findViewById(R.id.tvRouteAccount);
             btnApprove = itemView.findViewById(R.id.btnApprove);
             btnReject = itemView.findViewById(R.id.btnReject);
             btnDelete = itemView.findViewById(R.id.btnDelete);
+            btnLinkRoute = itemView.findViewById(R.id.btnLinkRoute);
         }
     }
 }

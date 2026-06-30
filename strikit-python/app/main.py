@@ -158,6 +158,10 @@ app.include_router(admin_router)
 if os.path.exists("reports"):
     app.mount("/reports", StaticFiles(directory="reports"), name="reports")
 
+# ── Serve static media files ──
+os.makedirs("static", exist_ok=True)
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # ── Health Check ──
 @app.get("/health")

@@ -306,6 +306,7 @@ async def _handle_booking_payment(
             owner=owner,
             amount_paise=owner_share_paise,
             booking_id=booking.id,
+            payment_id=razorpay_payment_id,
             db_session=db,
         )
 
@@ -331,6 +332,15 @@ async def _handle_booking_payment(
             await telegram_service.send_manual_review_alert(
                 booking.id, payout_result.get("reason", ""), owner.name, owner.turfName
             )
+            # FCM Push Notification
+            try:
+                from app.services.fcm_service import send_fcm_notification
+                send_fcm_notification(
+                    title="Payout Manual Review Required ⚠️",
+                    body=f"Booking #{booking.id} payout to {owner.name} ({owner.turfName}) needs review: {payout_result.get('reason', '')}"
+                )
+            except Exception as fcm_err:
+                logger.error(f"[FCM Manual Review] Failed: {fcm_err}")
         else:
             # FAILED
             ledger.status = "FAILED"
@@ -345,6 +355,15 @@ async def _handle_booking_payment(
                 owner.name, owner.turfName, owner_share_paise, booking.id,
                 payout_result.get("reason", "Unknown"),
             )
+            # FCM Push Notification
+            try:
+                from app.services.fcm_service import send_fcm_notification
+                send_fcm_notification(
+                    title="Payout Failed ❌",
+                    body=f"Booking #{booking.id} payout of ₹{amount_service.paise_to_rupees(owner_share_paise)} to {owner.name} failed: {payout_result.get('reason', '')}"
+                )
+            except Exception as fcm_err:
+                logger.error(f"[FCM Payout Failed] Failed: {fcm_err}")
 
         await db.commit()
 
@@ -357,6 +376,15 @@ async def _handle_booking_payment(
         await telegram_service.send_payout_failed_alert(
             owner.name, owner.turfName, owner_share_paise, booking.id, str(payout_err)
         )
+        # FCM Push Notification
+        try:
+            from app.services.fcm_service import send_fcm_notification
+            send_fcm_notification(
+                title="Payout Failed ❌",
+                body=f"Booking #{booking.id} payout of ₹{amount_service.paise_to_rupees(owner_share_paise)} to {owner.name} failed: {payout_err}"
+            )
+        except Exception as fcm_err:
+            logger.error(f"[FCM Payout Err] Failed: {fcm_err}")
 
     # ── Send WhatsApp notifications (non-blocking) ──
     try:
@@ -379,17 +407,7 @@ async def _handle_booking_payment(
         logger.error(f"[Razorpay Webhook] WhatsApp notification failed: {wa_err}")
 
     try:
-        payout_status_text = ""
-        if booking.payoutStatus == "COMPLETED":
-            payout_status_text = f"₹{amount_service.paise_to_rupees(owner_share_paise)} (Sent to UPI)"
-        elif booking.payoutStatus == "MANUAL_REVIEW":
-            payout_status_text = "Pending Manual Review"
-        elif booking.payoutStatus == "FAILED":
-            payout_status_text = "Payout Failed (Developer alert sent)"
-        else:
-            payout_status_text = "Processing"
-
-        rupee_total = amount_service.paise_to_rupees(amount_paid_paise)
+        rupee_owner_share = amount_service.paise_to_rupees(owner_share_paise)
         await whatsapp_service.send_text(
             owner.mobile,
             f"📅 *New Booking Alert for {owner.turfName}!* 📅\n\n"
@@ -399,8 +417,7 @@ async def _handle_booking_payment(
             f"• Sport/Event: {sport}\n"
             f"• Team Name: {team_name}\n"
             f"• Captain Name: {captain_name} ({phone})\n"
-            f"• Total Paid by Player: ₹{rupee_total}\n"
-            f"• Payout Sent to you: {payout_status_text}\n\n"
+            f"• Amount: *₹{rupee_owner_share}*\n\n"
             f"The slot status has been updated to *BOOKED* in your inventory.\n\n"
             f"_Powered by STRIKIT_",
         )
@@ -418,6 +435,15 @@ async def _handle_booking_payment(
             f"Platform Fee: ₹{amount_service.paise_to_rupees(platform_fee_paise)}\n"
             f"Owner Payout: ₹{amount_service.paise_to_rupees(owner_share_paise)}"
         )
+        # FCM Push Notification
+        try:
+            from app.services.fcm_service import send_fcm_notification
+            send_fcm_notification(
+                title="New Booking Confirmed 📅",
+                body=f"Captain {captain_name} booked a slot at {owner.turfName} on {date} @ {slot_time} (₹{amount_service.paise_to_rupees(amount_paid_paise)})"
+            )
+        except Exception as fcm_err:
+            logger.error(f"[FCM New Booking] Failed: {fcm_err}")
     except Exception as tg_err:
         logger.error(f"[Razorpay Webhook] Telegram notification failed: {tg_err}")
 

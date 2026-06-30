@@ -61,7 +61,11 @@ async def list_owners(
 
 
 @router.post("/owners/{owner_id}/approve")
-async def approve_owner(owner_id: int, db: AsyncSession = Depends(get_db)):
+async def approve_owner(
+    owner_id: int,
+    route_account_id: str = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
     """Approve an owner — set verified, send subscription link."""
     owner = await db.get(BotOwner, owner_id)
     if not owner:
@@ -70,6 +74,8 @@ async def approve_owner(owner_id: int, db: AsyncSession = Depends(get_db)):
     owner.verified = True
     owner.subscriptionActive = False
     owner.subscriptionExpiry = None
+    if route_account_id:
+        owner.razorpayContactId = route_account_id.strip()
 
     sub_link = payment_service.create_subscription_link(owner_id)
 
@@ -99,6 +105,22 @@ async def approve_owner(owner_id: int, db: AsyncSession = Depends(get_db)):
         logger.error(f"[Admin Approve] WhatsApp failed: {e}")
 
     return {"message": f"Owner {owner.name} approved successfully."}
+
+
+@router.post("/owners/{owner_id}/route_account")
+async def update_route_account(
+    owner_id: int,
+    route_account_id: str = Query(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update or set the Razorpay Route Linked Account ID for an owner."""
+    owner = await db.get(BotOwner, owner_id)
+    if not owner:
+        raise HTTPException(status_code=404, detail="Owner not found")
+
+    owner.razorpayContactId = route_account_id.strip() if route_account_id else None
+    await db.commit()
+    return {"status": "SUCCESS", "message": "Route account ID updated successfully."}
 
 
 @router.post("/owners/{owner_id}/reject")
@@ -363,6 +385,7 @@ async def retry_payout(payout_id: int, db: AsyncSession = Depends(get_db)):
         owner=owner,
         amount_paise=ledger.ownerSharePaise,
         booking_id=ledger.bookingId,
+        payment_id=ledger.razorpayPaymentId,
         db_session=db,
     )
 
@@ -396,6 +419,42 @@ async def retry_payout(payout_id: int, db: AsyncSession = Depends(get_db)):
         "status": ledger.status,
         "attemptCount": ledger.attemptCount,
         "payoutId": ledger.razorpayPayoutId,
+    }
+
+
+@router.post("/payouts/{payout_id}/settle_manually")
+async def settle_payout_manually(payout_id: int, db: AsyncSession = Depends(get_db)):
+    """
+    Manually settle a failed or pending payout.
+    Marks the ledger status as COMPLETED and booking payoutStatus as COMPLETED.
+    """
+    ledger = await db.get(BotPayoutLedger, payout_id)
+    if not ledger:
+        raise HTTPException(status_code=404, detail="Payout ledger not found")
+        
+    if ledger.status == "COMPLETED":
+        raise HTTPException(status_code=400, detail="Payout already COMPLETED")
+        
+    booking = await db.get(BotBooking, ledger.bookingId)
+    
+    ledger.status = "COMPLETED"
+    ledger.failureReason = "Settled Manually (GPay/UPI)"
+    if booking:
+        booking.payoutStatus = "COMPLETED"
+        
+    db.add(BotPaymentAuditLog(
+        bookingId=ledger.bookingId,
+        eventType="PAYOUT_SUCCESS",
+        message="Payout completed manually (settled by administrator)",
+    ))
+    
+    await db.commit()
+    
+    return {
+        "message": "Payout successfully marked as settled manually",
+        "status": "COMPLETED",
+        "attemptCount": ledger.attemptCount,
+        "payoutId": ledger.razorpayPayoutId or "manual",
     }
 
 

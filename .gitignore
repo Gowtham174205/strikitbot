@@ -10,3 +10,8 @@ strikit-admin-app/.gradle/
 strikit-admin-app/local.properties
 .gradle/
 build/
+
+# Firebase / Google Credentials
+google-services.json
+strikit-admin-app/app/google-services.json
+strikit-firebase-adminsdk-fbsvc-6cad65c38e.json

@@ -405,6 +405,17 @@ async def handle_onboarding_flow(
     media_id: str = "", media_type: str = "",
 ):
     """Owner onboarding state machine."""
+    # Prevent duplicate registrations for the same phone number
+    existing_owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+    if existing_owner:
+        await whatsapp_service.send_text(
+            phone,
+            f"⚠️ *Already Registered*\n\nYour mobile number is already registered for turf *{existing_owner.turfName}*.\n\nYou cannot register again."
+        )
+        # Reset session to owner dashboard
+        await update_session(phone, "OWNER_START", {}, db, role="OWNER")
+        return
+
     session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
 
     if not session or session.role != "ONBOARDING":
@@ -478,7 +489,7 @@ async def handle_onboarding_flow(
             )
             await update_session(phone, "AWAITING_GST", context, db)
         elif media_id and media_type == "image":
-            media_url = await whatsapp_service.get_media_url(media_id)
+            media_url = await whatsapp_service.download_whatsapp_media(media_id, "photos")
             photos = context.get("photoUrls", [])
             photos.append(media_url)
             context["photoUrls"] = photos
@@ -518,7 +529,7 @@ async def handle_onboarding_flow(
             context["msme"] = None
             context["msmeCardUrl"] = None
         elif media_id and media_type in ("image", "document"):
-            media_url = await whatsapp_service.get_media_url(media_id)
+            media_url = await whatsapp_service.download_whatsapp_media(media_id, "msme")
             context["msme"] = "Uploaded File"
             context["msmeCardUrl"] = media_url
         else:
@@ -546,7 +557,7 @@ async def handle_onboarding_flow(
         if lower == "onboarding_utility_skip" or text.upper() == "SKIP":
             context["utilityBillUrl"] = None
         elif media_id and media_type in ("image", "document"):
-            media_url = await whatsapp_service.get_media_url(media_id)
+            media_url = await whatsapp_service.download_whatsapp_media(media_id, "utility")
             context["utilityBillUrl"] = media_url
         else:
             await whatsapp_service.send_buttons(
@@ -617,6 +628,17 @@ async def handle_onboarding_flow(
         # Notify developers
         await whatsapp_service.send_developer_verification_alert(owner)
         await telegram_service.send_verification_alert(owner)
+        
+        # FCM Push Notification
+        try:
+            from app.services.fcm_service import send_fcm_notification
+            send_fcm_notification(
+                title="New Turf Onboarding 🏟️",
+                body=f"Owner {owner.name} registered {owner.turfName}. Awaiting approval."
+            )
+        except Exception as e:
+            logger.error(f"[Onboarding FCM] Failed: {e}")
+
         await db.commit()
 
 
@@ -840,8 +862,15 @@ async def handle_owner_commands(
                 f"💬 *Reason:* {reason_text}"
             )
             await telegram_service.send_alert(alert_msg)
+            
+            # FCM Push Notification
+            from app.services.fcm_service import send_fcm_notification
+            send_fcm_notification(
+                title="New Refund Request 💳",
+                body=f"{owner.name} ({owner.turfName}) requested a refund: {reason_text[:100]}"
+            )
         except Exception as e:
-            logger.error(f"[Owner Refund Alert] Failed to send Telegram alert: {e}")
+            logger.error(f"[Owner Refund Alert] Failed: {e}")
 
         await whatsapp_service.send_text(
             phone,
@@ -852,6 +881,12 @@ async def handle_owner_commands(
         return
 
     if lower == "set_price":
+        if not owner.subscriptionActive:
+            await whatsapp_service.send_text(
+                phone,
+                "⚠️ *Subscription Required*\n\nYou can only set or change your hourly price after paying and activating your subscription! Please complete your subscription payment first."
+            )
+            return
         await whatsapp_service.send_text(phone, "Enter new hourly price in Rupees (e.g. 1500):")
         await update_session(phone, "OWNER_SET_PRICE", {"ownerId": owner.id}, db, role="OWNER")
         return
@@ -1821,6 +1856,23 @@ async def process_booking_cancellation(phone: str, booking: BotBooking, reason_t
             f"{refund_msg}\n"
             f"_Powered by STRIKIT_"
         )
+
+        # Notify Owner about the cancellation via WhatsApp
+        try:
+            await whatsapp_service.send_text(
+                owner.mobile,
+                f"❌ *Booking Cancelled Alert for {owner.turfName}* ❌\n\n"
+                f"Hello {owner.name}, a booking at your turf has been cancelled:\n\n"
+                f"• Date: {slot.date}\n"
+                f"• Time Slot: {slot.timeSlot}\n"
+                f"• Sport/Event: {slot.sport or 'N/A'}\n"
+                f"• Booking ID: #{booking.id}\n"
+                f"• Refund to Player: {refund_percentage}% (₹{amount_service.paise_to_rupees(refund_amount_paise)})\n\n"
+                f"ℹ️ The slot has been set back to *AVAILABLE* for bookings.\n\n"
+                f"_Powered by STRIKIT_"
+            )
+        except Exception as wa_owner_err:
+            logger.error(f"[Cancellation] Failed to notify owner via WhatsApp: {wa_owner_err}")
 
         # 10. Reset player session context
         await update_session(phone, "PLAYER_START", {}, db)

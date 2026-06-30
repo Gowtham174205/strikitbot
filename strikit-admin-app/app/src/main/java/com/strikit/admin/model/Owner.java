@@ -18,8 +18,11 @@ public class Owner {
     private boolean subscriptionActive;
     private String subscriptionExpiry;
     private String createdAt;
+    private String razorpayContactId;
 
     // Getters and Setters
+    public String getRazorpayContactId() { return razorpayContactId; }
+    public void setRazorpayContactId(String razorpayContactId) { this.razorpayContactId = razorpayContactId; }
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
