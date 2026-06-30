@@ -186,11 +186,11 @@ async def process_ticket_verification(phone: str, booking_id: int, db: AsyncSess
     msg = (
         f"✅ *Booking Ticket Verified!* {status_emoji}\n\n"
         f"• Turf: *{owner.turfName}*\n"
-        f"• Slot Time: *{slot.startTime} - {slot.endTime}* ({slot.date})\n"
-        f"• Captain Name: *{booking.captainName}* ({booking.phone})\n"
+        f"• Slot Time: *{slot.timeSlot}* ({slot.date})\n"
+        f"• Captain Name: *{booking.captainName}* ({booking.captainPhone})\n"
         f"• Team Name: *{booking.teamName}*\n"
         f"• Sport/Event: *{booking.sport}*\n"
-        f"• Total Paid: *₹{amount_service.paise_to_rupees(booking.amountPaidPaise)}*\n"
+        f"• Total Paid: *₹{amount_service.paise_to_rupees(booking.totalPaidPaise)}*\n"
         f"• Ticket Status: *{status_text}*\n\n"
         f"_Powered by STRIKIT_"
     )
