@@ -24,6 +24,8 @@ class BotOwner(Base):
     upiId = Column(String, nullable=True)
     razorpayContactId = Column(String, nullable=True)
     razorpayFundAccountId = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    searchKeywords = Column(String, nullable=True)
     verified = Column(Boolean, default=False)
     businessPhone = Column(String, unique=True, nullable=True)
     subscriptionActive = Column(Boolean, default=False)

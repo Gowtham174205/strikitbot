@@ -65,6 +65,12 @@ async def init_db():
     """Create all tables on startup (dev only). Use Alembic in production."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        try:
+            from sqlalchemy import text
+            await conn.execute(text('ALTER TABLE "BotOwner" ADD COLUMN IF NOT EXISTS address VARCHAR(500)'))
+            await conn.execute(text('ALTER TABLE "BotOwner" ADD COLUMN IF NOT EXISTS "searchKeywords" VARCHAR(1000)'))
+        except Exception:
+            pass
 
 
 async def close_db():

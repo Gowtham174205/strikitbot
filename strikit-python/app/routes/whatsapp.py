@@ -31,6 +31,35 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["WhatsApp"])
 
 
+def extract_search_keywords(address: str, turf_name: str) -> str:
+    """Extract clean, unique search keywords from address and turf name."""
+    if not address:
+        address = ""
+    if not turf_name:
+        turf_name = ""
+    text = f"{address} {turf_name}".lower()
+    for char in [",", ".", "-", ";", ":", "/", "\\", "(", ")", "[", "]", "#"]:
+        text = text.replace(char, " ")
+    words = text.split()
+    ignored = {
+        "no", "near", "opposite", "street", "road", "tamil", "nadu", "india", "and", 
+        "the", "pin", "code", "pincode", "behind", "beside", "floor", "door", "block", 
+        "sector", "nagar", "city", "town", "district", "state", "turf", "ground", "arena"
+    }
+    keywords = []
+    for w in words:
+        w_clean = w.strip()
+        if len(w_clean) >= 3 and w_clean not in ignored:
+            keywords.append(w_clean)
+    seen = set()
+    unique_keywords = []
+    for k in keywords:
+        if k not in seen:
+            seen.add(k)
+            unique_keywords.append(k)
+    return ",".join(unique_keywords)
+
+
 # ══════════════════════════════════════════════════════════════════
 # WEBHOOK ENDPOINTS
 # ══════════════════════════════════════════════════════════════════
@@ -449,7 +478,16 @@ async def handle_onboarding_flow(
         context["turfName"] = sanitize_input(text, 100)
         await whatsapp_service.send_buttons(
             phone,
-            f'Got it: "{text}". Please enter the *Location* as a Google Maps link:',
+            f'Got it: "{text}". Now, please enter the *full address* of the turf (e.g. Street, Area, City, Pincode):',
+            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+        )
+        await update_session(phone, "AWAITING_ADDRESS", context, db)
+
+    elif state == "AWAITING_ADDRESS":
+        context["address"] = sanitize_input(text, 250)
+        await whatsapp_service.send_buttons(
+            phone,
+            "Address saved. Now, please enter the *Location* as a Google Maps link:",
             [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
         )
         await update_session(phone, "AWAITING_LOCATION", context, db)
@@ -608,6 +646,8 @@ async def handle_onboarding_flow(
             pricePerHourPaise=100000,  # Default ₹1000
             latitude=context.get("latitude"),
             longitude=context.get("longitude"),
+            address=context.get("address"),
+            searchKeywords=extract_search_keywords(context.get("address", ""), context["turfName"]),
         )
         db.add(owner)
         await db.flush()
@@ -1132,15 +1172,142 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             await update_session(phone, "AWAITING_TURF_SELECTION", {}, db, role="CUSTOMER")
             return
         else:
-            await whatsapp_service.send_buttons(
-                phone,
-                "⚠️ Please share your current location using the native WhatsApp Location sharing button (📎 -> Location) so we can find turfs nearby:",
-                [
-                    {"id": "player_join_game", "title": "🎮 Join a Game"},
-                    {"id": "player_my_bookings", "title": "📋 My Bookings"},
-                    {"id": "back_to_roles", "title": "🔙 Back to Menu"},
+            search_query = text.strip()
+            prefixes = [
+                "book turf near", "show turf near", "turf near", "near",
+                "book turf in", "show turf in", "turf in", "in",
+                "book turf at", "show turf at", "turf at", "at",
+                "book turf", "show turf", "book", "show", "search"
+            ]
+            lower_text = search_query.lower()
+            for p in prefixes:
+                if lower_text.startswith(p):
+                    search_query = search_query[len(p):].strip()
+                    break
+
+            if search_query and lower_text not in ("done", "cancel", "menu", "hi", "hello"):
+                words = [w.strip() for w in search_query.lower().split() if len(w.strip()) >= 2]
+                if words:
+                    owners = (await db.execute(
+                        select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
+                    )).scalars().all()
+                    
+                    matched_owners = []
+                    for o in owners:
+                        name_lower = o.turfName.lower()
+                        address_lower = (o.address or "").lower()
+                        keywords_lower = (o.searchKeywords or "").lower()
+                        
+                        matches = True
+                        for w in words:
+                            if w not in name_lower and w not in address_lower and w not in keywords_lower:
+                                matches = False
+                                break
+                        if matches:
+                            matched_owners.append(o)
+                            
+                    if matched_owners:
+                        rows = [
+                            {
+                                "id": f"select_turf_{o.id}",
+                                "title": o.turfName[:24],
+                                "description": f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr | {o.address[:24] if o.address else ''}",
+                            }
+                            for o in matched_owners
+                        ]
+                        
+                        sections = [
+                            {
+                                "title": f"Matches for '{search_query}'",
+                                "rows": rows,
+                            },
+                            {
+                                "title": "Go Back",
+                                "rows": [
+                                    {
+                                        "id": "back_to_roles",
+                                        "title": "🔙 Back to Main Menu",
+                                        "description": "Switch between Player and Owner roles",
+                                    }
+                                ],
+                            }
+                        ]
+                        
+                        await whatsapp_service.send_list(
+                            phone,
+                            f"🏟️ *Matching Turfs found near '{search_query}':*\n\nSelect a turf below to book:",
+                            "🏟️ View Matches",
+                            sections
+                        )
+                        
+                        await whatsapp_service.send_buttons(
+                            phone,
+                            "Or search again / share location:",
+                            [
+                                {"id": "player_join_game", "title": "🎮 Join a Game"},
+                                {"id": "player_my_bookings", "title": "📋 My Bookings"},
+                                {"id": "back_to_roles", "title": "🔙 Back to Roles"},
+                            ],
+                        )
+                        
+                        await update_session(phone, "AWAITING_TURF_SELECTION", {}, db, role="CUSTOMER")
+                        return
+
+            owners = (await db.execute(
+                select(BotOwner).where(BotOwner.verified == True, BotOwner.subscriptionActive == True)
+            )).scalars().all()
+            
+            if owners:
+                rows = [
+                    {
+                        "id": f"select_turf_{o.id}",
+                        "title": o.turfName[:24],
+                        "description": f"₹{amount_service.paise_to_rupees(o.pricePerHourPaise)}/hr",
+                    }
+                    for o in owners[:10]
                 ]
-            )
+                
+                sections = [
+                    {
+                        "title": "All Available Turfs",
+                        "rows": rows,
+                    },
+                    {
+                        "title": "Go Back",
+                        "rows": [
+                            {
+                                "id": "back_to_roles",
+                                "title": "🔙 Back to Main Menu",
+                                "description": "Switch between Player and Owner roles",
+                            }
+                        ],
+                    }
+                ]
+                
+                msg = f"Sorry, we couldn't find any turfs near '{search_query}'." if (text and lower_text not in ("done", "cancel", "menu", "hi", "hello")) else "⚠️ We couldn't detect your location."
+                await whatsapp_service.send_list(
+                    phone,
+                    f"{msg}\n\nHere are the available turfs on our platform. Select one below to book:",
+                    "🏟️ View Turfs",
+                    sections,
+                )
+                
+                await whatsapp_service.send_buttons(
+                    phone,
+                    "Or choose an option:",
+                    [
+                        {"id": "player_join_game", "title": "🎮 Join a Game"},
+                        {"id": "player_my_bookings", "title": "📋 My Bookings"},
+                        {"id": "back_to_roles", "title": "🔙 Back to Roles"},
+                    ],
+                )
+                
+                await update_session(phone, "AWAITING_TURF_SELECTION", {}, db, role="CUSTOMER")
+            else:
+                await whatsapp_service.send_text(
+                    phone,
+                    "No active turfs are currently registered. Please check back later!"
+                )
             return
 
     # Context
