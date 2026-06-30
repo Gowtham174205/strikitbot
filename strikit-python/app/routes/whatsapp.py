@@ -178,7 +178,7 @@ async def process_ticket_verification(phone: str, booking_id: int, db: AsyncSess
     if booking.status == "CANCELLED":
         status_emoji = "🔴"
         status_text = "CANCELLED"
-    elif booking.status == "PENDING":
+    elif booking.paymentStatus == "PENDING":
         status_emoji = "🟡"
         status_text = "PAYMENT PENDING"
 
@@ -1671,6 +1671,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             total_amount_paise=total_paise,
             sport=context["sport"],
         )
+        context["payLink"] = pay_link
 
         await whatsapp_service.send_text(
             phone,
@@ -1694,14 +1695,21 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
 
     # Awaiting payment
     if state == "AWAITING_PAYMENT_CONFIRMATION":
-        owner = await db.get(BotOwner, context.get("ownerId"))
-        if owner:
-            split = amount_service.calculate_booking_split(owner.pricePerHourPaise)
-            pay_link = payment_service.create_booking_link(
-                phone=phone, owner_id=owner.id, date=context["selectedDate"],
-                slot_time=context["selectedSlot"], captain_name=context["captainName"],
-                team_name=context["teamName"], total_amount_paise=split["total_paise"],
-            )
+        pay_link = context.get("payLink")
+        if not pay_link:
+            owner = await db.get(BotOwner, context.get("ownerId"))
+            if owner:
+                split = amount_service.calculate_booking_split(owner.pricePerHourPaise)
+                pay_link = payment_service.create_booking_link(
+                    phone=phone, owner_id=owner.id, date=context["selectedDate"],
+                    slot_time=context["selectedSlot"], captain_name=context["captainName"],
+                    team_name=context["teamName"], total_amount_paise=split["total_paise"],
+                    sport=context.get("sport", ""),
+                )
+                context["payLink"] = pay_link
+                await update_session(phone, "AWAITING_PAYMENT_CONFIRMATION", context, db)
+        
+        if pay_link:
             await whatsapp_service.send_text(
                 phone,
                 f"⏳ *Awaiting Payment*\n\nYour slot is temporarily held. Pay here:\n👉 {pay_link}\n\n_Powered by STRIKIT_",
@@ -2091,7 +2099,7 @@ async def process_booking_cancellation(phone: str, booking: BotBooking, reason_t
                 f"Hello {owner.name}, a booking at your turf has been cancelled:\n\n"
                 f"• Date: {slot.date}\n"
                 f"• Time Slot: {slot.timeSlot}\n"
-                f"• Sport/Event: {slot.sport or 'N/A'}\n"
+                f"• Sport/Event: {booking.sport or 'N/A'}\n"
                 f"• Booking ID: #{booking.id}\n"
                 f"• Refund to Player: {refund_percentage}% (₹{amount_service.paise_to_rupees(refund_amount_paise)})\n\n"
                 f"ℹ️ The slot has been set back to *AVAILABLE* for bookings.\n\n"

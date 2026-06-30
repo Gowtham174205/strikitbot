@@ -135,7 +135,7 @@ async def execute_payout(
             }
             logger.info(f"[Payout Route] Creating Route transfer for payment {payment_id} to Linked Account {owner.razorpayContactId.strip()}")
             
-            transfer_response = client.payment.fetch(payment_id).transfer(transfer_payload)
+            transfer_response = client.payment.transfer(payment_id, transfer_payload)
             transfers_list = transfer_response.get("items", [])
             transfer_id = transfers_list[0].get("id") if transfers_list else f"trns_{booking_id}"
             

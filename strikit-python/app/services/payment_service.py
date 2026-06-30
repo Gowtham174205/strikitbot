@@ -153,11 +153,7 @@ def refund_payment(payment_id: str, amount_paise: int) -> dict:
         return {"id": f"rfnd_mock_{payment_id}", "status": "processed", "amount": amount_paise}
 
     try:
-        # standard Razorpay SDK refund method
-        refund = client.refund.create({
-            "payment_id": payment_id,
-            "amount": amount_paise
-        })
+        refund = client.payment.refund(payment_id, {"amount": amount_paise})
         return refund
     except Exception as e:
         logger.error(f"[PaymentService] Refund error for payment {payment_id}: {e}")

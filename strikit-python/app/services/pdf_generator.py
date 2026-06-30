@@ -663,7 +663,7 @@ def generate_booking_invoice(booking, output_dir: str) -> str:
     right_meta = [
         ("Captain Name", getattr(booking, "captainName", "N/A")),
         ("Phone Number", getattr(booking, "captainPhone", "N/A")),
-        ("Confirmed At", getattr(booking, "confirmedAt", datetime.utcnow()).strftime('%d %b %Y %I:%M %p'))
+        ("Confirmed At", (getattr(booking, "confirmedAt", None) or getattr(booking, "createdAt", None) or datetime.utcnow()).strftime('%d %b %Y %I:%M %p'))
     ]
     story.append(create_meta_card(left_meta, right_meta))
     story.append(Spacer(1, 15))
