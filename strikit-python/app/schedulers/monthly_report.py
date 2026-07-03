@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import BotOwner, BotBooking, BotTurfSlot, BotJoinRequest
@@ -50,7 +51,9 @@ async def check_and_send_monthly_report(db: AsyncSession):
             end = datetime(now.year, now.month, 1)
 
         bookings_result = await db.execute(
-            select(BotBooking).where(
+            select(BotBooking).options(
+                selectinload(BotBooking.slot).selectinload(BotTurfSlot.owner)
+            ).where(
                 BotBooking.paymentStatus == "VERIFIED",
                 BotBooking.createdAt >= start,
                 BotBooking.createdAt < end,
@@ -59,7 +62,11 @@ async def check_and_send_monthly_report(db: AsyncSession):
         bookings = bookings_result.scalars().all()
 
         joins_result = await db.execute(
-            select(BotJoinRequest).where(
+            select(BotJoinRequest).options(
+                selectinload(BotJoinRequest.booking)
+                .selectinload(BotBooking.slot)
+                .selectinload(BotTurfSlot.owner)
+            ).where(
                 BotJoinRequest.status == "ACCEPTED",
                 BotJoinRequest.createdAt >= start,
                 BotJoinRequest.createdAt < end,
@@ -105,7 +112,9 @@ async def check_and_send_monthly_report(db: AsyncSession):
 
                 if slot_ids:
                     owner_bookings_result = await db.execute(
-                        select(BotBooking).where(
+                        select(BotBooking).options(
+                            selectinload(BotBooking.slot)
+                        ).where(
                             BotBooking.slotId.in_(slot_ids),
                             BotBooking.paymentStatus == "VERIFIED",
                             BotBooking.createdAt >= start,

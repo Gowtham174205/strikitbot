@@ -10,6 +10,7 @@ from datetime import datetime
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -148,13 +149,19 @@ async def _trigger_monthly_report(db: AsyncSession, previous_month: bool = True)
 
     # Query bookings
     result = await db.execute(
-        select(BotBooking).where(BotBooking.createdAt >= start, BotBooking.createdAt <= end)
+        select(BotBooking).options(
+            selectinload(BotBooking.slot).selectinload(BotTurfSlot.owner)
+        ).where(BotBooking.createdAt >= start, BotBooking.createdAt <= end)
     )
     bookings = result.scalars().all()
 
     # Query join requests
     jr_result = await db.execute(
-        select(BotJoinRequest).where(
+        select(BotJoinRequest).options(
+            selectinload(BotJoinRequest.booking)
+            .selectinload(BotBooking.slot)
+            .selectinload(BotTurfSlot.owner)
+        ).where(
             BotJoinRequest.status == "ACCEPTED",
             BotJoinRequest.createdAt >= start,
             BotJoinRequest.createdAt <= end,
