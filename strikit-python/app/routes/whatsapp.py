@@ -362,6 +362,12 @@ async def handle_whatsapp_message(
         # Get existing session
         session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
 
+        # Auto-detect verified active/inactive turf owners
+        owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+        if owner and owner.verified:
+            if not session or session.role != "OWNER":
+                session = await update_session(phone, "OWNER_START", {"ownerId": owner.id}, db, role="OWNER")
+
         # Handle back/cancel command inside onboarding flow
         if session and session.role == "ONBOARDING" and lower in ("cancel", "/cancel", "back", "cancel_onboarding"):
             await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
