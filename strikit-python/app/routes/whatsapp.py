@@ -925,6 +925,7 @@ async def handle_owner_commands(
                     {"id": "set_timing", "title": "⏰ Change Timings", "description": "Opening/closing hours"},
                     {"id": "set_upi", "title": "🏦 Change UPI ID", "description": "Payout UPI address"},
                     {"id": "block_slot", "title": "🔒 Block Slot", "description": "Block a time slot"},
+                    {"id": "get_qr", "title": "🖼️ Get Booking QR & Link", "description": "Download turf QR Code & Link"},
                 ],
             }],
         )
@@ -932,6 +933,25 @@ async def handle_owner_commands(
 
     # Settings actions
     session = (await db.execute(select(BotSession).where(BotSession.phone == phone))).scalars().first()
+
+    if lower == "get_qr":
+        import urllib.parse
+        wa_link = f"https://wa.me/{settings.ONBOARDING_NUMBER}?text=book_{owner.id}"
+        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(wa_link)}"
+        await whatsapp_service.send_image(
+            phone,
+            qr_url,
+            caption=(
+                f"🏟️ *Your Turf Booking QR Code & Direct Link* 🏟️\n\n"
+                f"• Turf Name: *{owner.turfName}*\n"
+                f"• Hourly Price: ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hr\n"
+                f"• Timings: {owner.openingTime} - {owner.closingTime}\n\n"
+                f"🔗 *Your Direct Booking Link:* \n"
+                f"{wa_link}\n\n"
+                f"Print this QR code and display it at your turf entrance, or share your booking link on Instagram/WhatsApp!"
+            )
+        )
+        return
 
     if session and session.state == "AWAITING_OWNER_REFUND_REASON":
         reason_text = text.strip()
@@ -977,6 +997,64 @@ async def handle_owner_commands(
             "Your request has been sent to the STRIKIT Admin team for manual review. "
             "We will get back to you shortly."
         )
+        return
+
+    # Guided Owner Setup Flow (Post-Payment)
+    if session and session.state == "OWNER_SETUP_PRICE":
+        try:
+            price = int(text.strip())
+            paise = amount_service.rupees_to_paise(price)
+            if paise < 10000 or paise > 5000000:
+                await whatsapp_service.send_text(phone, "⚠️ Price must be between ₹100 and ₹50,000. Please enter again:")
+                return
+            owner.pricePerHourPaise = paise
+            context["pricePerHourPaise"] = paise
+            await whatsapp_service.send_text(
+                phone,
+                f"✅ *Price Set: ₹{price}/hour*\n\n"
+                f"Next, please enter your turf's **Operating Timings** (Format: `06:00 AM - 10:00 PM`):"
+            )
+            await update_session(phone, "OWNER_SETUP_TIMING", context, db, role="OWNER")
+        except ValueError:
+            await whatsapp_service.send_text(phone, "⚠️ Please enter a valid number (e.g. 1200):")
+        return
+
+    if session and session.state == "OWNER_SETUP_TIMING":
+        parts = text.split("-")
+        if len(parts) >= 2:
+            opening = parts[0].strip()
+            closing = parts[1].strip()
+            try:
+                from datetime import datetime as dt
+                dt.strptime(opening, "%I:%M %p")
+                dt.strptime(closing, "%I:%M %p")
+            except Exception:
+                await whatsapp_service.send_text(phone, "⚠️ Inconsistent timing format. Please enter in this format: `06:00 AM - 10:00 PM`:")
+                return
+
+            owner.openingTime = opening
+            owner.closingTime = closing
+            await db.delete(session)
+            await db.commit()
+
+            import urllib.parse
+            wa_link = f"https://wa.me/{settings.ONBOARDING_NUMBER}?text=book_{owner.id}"
+            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(wa_link)}"
+            await whatsapp_service.send_image(
+                phone,
+                qr_url,
+                caption=(
+                    f"🎉 *Setup Complete! Turf is Live!* 🎉\n\n"
+                    f"All settings have been successfully saved for *{owner.turfName}*:\n"
+                    f"• Price/Hour: ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hr\n"
+                    f"• Timings: {owner.openingTime} - {owner.closingTime}\n\n"
+                    f"🔗 *Your Direct Booking Link:* \n"
+                    f"{wa_link}\n\n"
+                    f"Print this QR code and display it at your turf entrance, or share your booking link on Instagram/WhatsApp!"
+                )
+            )
+        else:
+            await whatsapp_service.send_text(phone, "⚠️ Inconsistent timing format. Please enter in this format: `06:00 AM - 10:00 PM`:")
         return
 
     if lower == "set_price":
@@ -1137,6 +1215,62 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         reason_text = reason_map.get(reason_id, "Unknown")
         await process_booking_cancellation(phone, booking, reason_text, db)
         return
+
+    # Player Deep-Link Handler (book_{owner_id})
+    if lower.startswith("book_"):
+        try:
+            owner_id = int(lower.replace("book_", ""))
+            owner = await db.get(BotOwner, owner_id)
+            if not owner:
+                await whatsapp_service.send_text(phone, "❌ Turf not found. Please type *menu* to see available turfs.")
+                return
+
+            context = {
+                "ownerId": owner.id,
+                "turfName": owner.turfName
+            }
+
+            caption_text = (
+                f"🏟️ *{owner.turfName}* 🏟️\n\n"
+                f"📍 *Address:* {owner.address or 'Address not configured'}\n"
+                f"💰 *Rate:* ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hour\n"
+                f"⏰ *Timings:* {owner.openingTime} - {owner.closingTime}\n"
+                f"🗺️ *Google Maps:* {owner.location}"
+            )
+
+            photo_sent = False
+            if owner.photoUrls:
+                photos = [p.strip() for p in owner.photoUrls.split(",") if p.strip()]
+                if photos:
+                    try:
+                        await whatsapp_service.send_image(phone, photos[0], caption_text)
+                        photo_sent = True
+                    except Exception as img_err:
+                        logger.error(f"[DeepLink] Failed to send photo: {img_err}")
+
+            if not photo_sent:
+                await whatsapp_service.send_text(phone, caption_text)
+
+            dates = []
+            for i in range(7):
+                d = datetime.utcnow() + timedelta(days=i)
+                dates.append(d.strftime("%Y-%m-%d"))
+
+            sections = [{
+                "title": "Available Dates",
+                "rows": [{"id": f"date_{d}", "title": d, "description": ""} for d in dates],
+            }]
+
+            await whatsapp_service.send_list(
+                phone,
+                f"📅 Select a date to book at *{owner.turfName}*:",
+                "📅 Select Date",
+                sections,
+            )
+            await update_session(phone, "AWAITING_DATE_SELECTION", context, db, role="CUSTOMER")
+            return
+        except ValueError:
+            pass
 
     # Player menu / location query
     if not session or lower in ("hi", "hello", "book", "/book", "menu") or session.state == "PLAYER_START":

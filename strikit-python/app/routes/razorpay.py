@@ -506,12 +506,16 @@ async def _handle_subscription_payment(db: AsyncSession, notes: dict) -> JSONRes
     from datetime import timedelta
     owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=days)
 
-    # Update session to ONBOARDING complete
+    # Update session to OWNER_SETUP_PRICE state
     session = (
         await db.execute(select(BotSession).where(BotSession.phone == owner.mobile))
     ).scalars().first()
-    if session:
-        await db.delete(session)
+    if not session:
+        session = BotSession(phone=owner.mobile)
+        db.add(session)
+    session.state = "OWNER_SETUP_PRICE"
+    session.role = "OWNER"
+    session.context = json.dumps({"ownerId": owner.id})
 
     await db.commit()
 
@@ -523,10 +527,9 @@ async def _handle_subscription_payment(db: AsyncSession, notes: dict) -> JSONRes
             f"🎉 *Subscription Activated!* 🎉\n\n"
             f"Hello {owner.name}, your STRIKIT subscription for *{owner.turfName}* is now active!\n\n"
             f"• Plan: {plan_desc}\n"
-            f"• Features: {features_desc}\n"
             f"• Expires: {owner.subscriptionExpiry.strftime('%d %b %Y')}\n\n"
-            f"Your QR Code-based booking bot is now live for players.\n\n"
-            f"_Powered by STRIKIT_",
+            f"To start receiving bookings, let's configure your turf settings. "
+            f"Please reply to this message with your turf's **Hourly Price in Rupees** (e.g. `1200`):",
         )
     except Exception as e:
         logger.error(f"[Razorpay Webhook] WhatsApp notification failed: {e}")
