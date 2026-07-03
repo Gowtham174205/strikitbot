@@ -227,7 +227,6 @@ async def handle_whatsapp_message(
                 await whatsapp_service.send_text(phone, "⏳ Your turf verification is pending developer approval.")
                 return
             
-            from datetime import timedelta
             eligible = False
             now = datetime.utcnow()
             if owner.subscriptionActive:
