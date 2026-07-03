@@ -296,6 +296,62 @@ async def handle_whatsapp_message(
 
     # Centralized routing (single bot number)
     if to == settings.ONBOARDING_NUMBER or to == settings.WHATSAPP_PHONE_NUMBER_ID:
+        # Player Deep-Link Handler (book_{owner_id})
+        if lower.startswith("book_"):
+            try:
+                owner_id = int(lower.replace("book_", ""))
+                owner = await db.get(BotOwner, owner_id)
+                if not owner:
+                    await whatsapp_service.send_text(phone, "❌ Turf not found. Please type *menu* to see available turfs.")
+                    return
+
+                context = {
+                    "ownerId": owner.id,
+                    "turfName": owner.turfName
+                }
+
+                caption_text = (
+                    f"🏟️ *{owner.turfName}* 🏟️\n\n"
+                    f"📍 *Address:* {owner.address or 'Address not configured'}\n"
+                    f"💰 *Rate:* ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hour\n"
+                    f"⏰ *Timings:* {owner.openingTime} - {owner.closingTime}\n"
+                    f"🗺️ *Google Maps:* {owner.location}"
+                )
+
+                photo_sent = False
+                if owner.photoUrls:
+                    photos = [p.strip() for p in owner.photoUrls.split(",") if p.strip()]
+                    if photos:
+                        try:
+                            await whatsapp_service.send_image(phone, photos[0], caption_text)
+                            photo_sent = True
+                        except Exception as img_err:
+                            logger.error(f"[DeepLink] Failed to send photo: {img_err}")
+
+                if not photo_sent:
+                    await whatsapp_service.send_text(phone, caption_text)
+
+                dates = []
+                for i in range(7):
+                    d = datetime.utcnow() + timedelta(days=i)
+                    dates.append(d.strftime("%Y-%m-%d"))
+
+                sections = [{
+                    "title": "Available Dates",
+                    "rows": [{"id": f"date_{d}", "title": d, "description": ""} for d in dates],
+                }]
+
+                await whatsapp_service.send_list(
+                    phone,
+                    f"📅 Select a date to book at *{owner.turfName}*:",
+                    "📅 Select Date",
+                    sections,
+                )
+                await update_session(phone, "AWAITING_DATE_SELECTION", context, db, role="CUSTOMER")
+                return
+            except ValueError:
+                pass
+
         # If they send 'hi' / 'hello' / 'menu' / '/menu', show role selection or owner menu
         if lower in ("hi", "hello", "menu", "/menu"):
             owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
@@ -1227,61 +1283,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         await process_booking_cancellation(phone, booking, reason_text, db)
         return
 
-    # Player Deep-Link Handler (book_{owner_id})
-    if lower.startswith("book_"):
-        try:
-            owner_id = int(lower.replace("book_", ""))
-            owner = await db.get(BotOwner, owner_id)
-            if not owner:
-                await whatsapp_service.send_text(phone, "❌ Turf not found. Please type *menu* to see available turfs.")
-                return
 
-            context = {
-                "ownerId": owner.id,
-                "turfName": owner.turfName
-            }
-
-            caption_text = (
-                f"🏟️ *{owner.turfName}* 🏟️\n\n"
-                f"📍 *Address:* {owner.address or 'Address not configured'}\n"
-                f"💰 *Rate:* ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hour\n"
-                f"⏰ *Timings:* {owner.openingTime} - {owner.closingTime}\n"
-                f"🗺️ *Google Maps:* {owner.location}"
-            )
-
-            photo_sent = False
-            if owner.photoUrls:
-                photos = [p.strip() for p in owner.photoUrls.split(",") if p.strip()]
-                if photos:
-                    try:
-                        await whatsapp_service.send_image(phone, photos[0], caption_text)
-                        photo_sent = True
-                    except Exception as img_err:
-                        logger.error(f"[DeepLink] Failed to send photo: {img_err}")
-
-            if not photo_sent:
-                await whatsapp_service.send_text(phone, caption_text)
-
-            dates = []
-            for i in range(7):
-                d = datetime.utcnow() + timedelta(days=i)
-                dates.append(d.strftime("%Y-%m-%d"))
-
-            sections = [{
-                "title": "Available Dates",
-                "rows": [{"id": f"date_{d}", "title": d, "description": ""} for d in dates],
-            }]
-
-            await whatsapp_service.send_list(
-                phone,
-                f"📅 Select a date to book at *{owner.turfName}*:",
-                "📅 Select Date",
-                sections,
-            )
-            await update_session(phone, "AWAITING_DATE_SELECTION", context, db, role="CUSTOMER")
-            return
-        except ValueError:
-            pass
 
     # Player menu / location query
     if not session or lower in ("hi", "hello", "book", "/book", "menu") or session.state == "PLAYER_START":
