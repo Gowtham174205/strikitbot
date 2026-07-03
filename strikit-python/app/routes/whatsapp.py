@@ -296,8 +296,12 @@ async def handle_whatsapp_message(
 
     # Centralized routing (single bot number)
     if to == settings.ONBOARDING_NUMBER or to == settings.WHATSAPP_PHONE_NUMBER_ID:
-        # If they send 'hi' / 'hello' / 'menu' / '/menu', show role selection
+        # If they send 'hi' / 'hello' / 'menu' / '/menu', show role selection or owner menu
         if lower in ("hi", "hello", "menu", "/menu"):
+            owner = (await db.execute(select(BotOwner).where(BotOwner.mobile == phone))).scalars().first()
+            if owner and owner.verified:
+                await update_session(phone, "OWNER_START", {"ownerId": owner.id}, db, role="OWNER")
+                return await handle_owner_commands(phone, text, owner, db, media_id, media_type)
             await update_session(phone, "ROLE_SELECTION", {}, db, role="CUSTOMER")
             await show_role_selection(phone)
             return
