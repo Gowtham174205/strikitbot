@@ -157,7 +157,12 @@ def refund_payment(payment_id: str, amount_paise: int) -> dict:
         return {"id": f"rfnd_mock_{payment_id}", "status": "processed", "amount": amount_paise}
 
     try:
-        refund = client.payment.refund(payment_id, {"amount": amount_paise})
+        # We use 'optimum' speed for Instant Refunds where supported by the customer's bank
+        refund = client.payment.refund(payment_id, {
+            "amount": amount_paise,
+            "speed": "optimum"
+        })
+        logger.info(f"[PaymentService] Successfully initiated optimum refund for {payment_id}")
         return refund
     except Exception as e:
         logger.error(f"[PaymentService] Refund error for payment {payment_id}: {e}")
