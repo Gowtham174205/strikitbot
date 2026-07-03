@@ -1008,6 +1008,7 @@ async def handle_owner_commands(
     # Guided Owner Setup Flow (Post-Payment)
     if session and session.state == "OWNER_SETUP_PRICE":
         try:
+            context = json.loads(session.context) if session.context else {}
             price = int(text.strip())
             paise = amount_service.rupees_to_paise(price)
             if paise < 10000 or paise > 5000000:
