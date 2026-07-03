@@ -734,22 +734,45 @@ async def handle_onboarding_flow(
 
         await whatsapp_service.send_buttons(
             phone,
-            "Enter your *UPI ID* for receiving payouts (e.g. name@upi):",
+            "Enter your *Bank IFSC Code* for receiving payouts (e.g. SBIN0001234):",
             [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
         )
-        await update_session(phone, "AWAITING_UPI", context, db)
+        await update_session(phone, "AWAITING_IFSC", context, db)
 
-    elif state == "AWAITING_UPI":
-        context["upiId"] = sanitize_input(text, 100)
+    elif state == "AWAITING_IFSC":
+        ifsc = sanitize_input(text, 20).strip().upper()
 
-        # Validate UPI format
-        if not amount_service.validate_upi_id(context["upiId"]):
+        # Basic IFSC format validation: 4 letters + 0 + 6 alphanumeric
+        import re
+        if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', ifsc):
             await whatsapp_service.send_buttons(
                 phone,
-                "⚠️ Invalid UPI format. Please enter a UPI ID for payouts (e.g. name@upi):",
+                "⚠️ Invalid IFSC format. IFSC code must be 11 characters (e.g. SBIN0001234). Please try again:",
                 [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
             )
             return
+
+        context["ifscCode"] = ifsc
+        await whatsapp_service.send_buttons(
+            phone,
+            "Enter your *Bank Account Number* for receiving payouts:",
+            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+        )
+        await update_session(phone, "AWAITING_ACCOUNT_NUMBER", context, db)
+
+    elif state == "AWAITING_ACCOUNT_NUMBER":
+        acct = sanitize_input(text, 30).strip()
+
+        # Basic account number validation: 8-18 digits
+        if not acct.isdigit() or len(acct) < 8 or len(acct) > 18:
+            await whatsapp_service.send_buttons(
+                phone,
+                "⚠️ Invalid account number. Please enter a valid bank account number (8-18 digits):",
+                [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+            )
+            return
+
+        context["accountNumber"] = acct
 
         # Create owner record
         photo_str = context.get("photoUrls", "")
@@ -766,7 +789,8 @@ async def handle_onboarding_flow(
             msme=context.get("msme"),
             msmeCardUrl=context.get("msmeCardUrl"),
             utilityBillUrl=context.get("utilityBillUrl"),
-            upiId=context["upiId"],
+            ifscCode=context["ifscCode"],
+            accountNumber=context["accountNumber"],
             pricePerHourPaise=100000,  # Default ₹1000
             latitude=context.get("latitude"),
             longitude=context.get("longitude"),
@@ -779,13 +803,18 @@ async def handle_onboarding_flow(
         context["ownerId"] = owner.id
         await update_session(phone, "AWAITING_VERIFICATION", context, db)
 
+        # Mask account number for display
+        masked_acct = "X" * (len(context["accountNumber"]) - 4) + context["accountNumber"][-4:]
+
         await whatsapp_service.send_text(
             phone,
             f"✅ *Registration Complete!*\n\n"
             f"Your details have been submitted for verification:\n"
             f"• Name: {owner.name}\n"
             f"• Turf: {owner.turfName}\n"
-            f"• UPI: {owner.upiId}\n\n"
+            f"• Address: {context.get('address', 'N/A')}\n"
+            f"• IFSC: {owner.ifscCode}\n"
+            f"• Account: {masked_acct}\n\n"
             f"⏳ Please wait for developer approval.\n\n_Powered by STRIKIT_",
         )
 
@@ -975,20 +1004,27 @@ async def handle_owner_commands(
 
     # Settings
     if lower in ("owner_settings", "/settings", "settings"):
+        masked_acct = ""
+        if owner.accountNumber:
+            masked_acct = "X" * (len(owner.accountNumber) - 4) + owner.accountNumber[-4:]
+        else:
+            masked_acct = "Not set"
         await whatsapp_service.send_list(
             phone,
             f"⚙️ *Settings — {owner.turfName}*\n\nCurrent Config:\n"
             f"• Price/Hour: ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}\n"
             f"• Opening: {owner.openingTime}\n"
             f"• Closing: {owner.closingTime}\n"
-            f"• UPI: {owner.upiId or 'Not set'}\n",
+            f"• IFSC: {owner.ifscCode or 'Not set'}\n"
+            f"• Account: {masked_acct}\n"
+            f"• Address: {owner.address or 'Not set'}\n",
             "Change Settings",
             [{
                 "title": "Settings",
                 "rows": [
                     {"id": "set_price", "title": "💰 Change Price", "description": "Set hourly rate"},
                     {"id": "set_timing", "title": "⏰ Change Timings", "description": "Opening/closing hours"},
-                    {"id": "set_upi", "title": "🏦 Change UPI ID", "description": "Payout UPI address"},
+                    {"id": "set_bank", "title": "🏦 Change Bank Details", "description": "IFSC & Account Number"},
                     {"id": "block_slot", "title": "🔒 Block Slot", "description": "Block a time slot"},
                     {"id": "get_qr", "title": "🖼️ Get Booking QR & Link", "description": "Download turf QR Code & Link"},
                 ],
@@ -1149,21 +1185,36 @@ async def handle_owner_commands(
             await whatsapp_service.send_text(phone, "Please enter a valid number (e.g. 1500):")
         return
 
-    if lower == "set_upi":
-        await whatsapp_service.send_text(phone, "Enter new UPI ID (e.g. name@upi):")
-        await update_session(phone, "OWNER_SET_UPI", {"ownerId": owner.id}, db, role="OWNER")
+    if lower == "set_bank":
+        await whatsapp_service.send_text(phone, "Enter new *IFSC Code* (e.g. SBIN0001234):")
+        await update_session(phone, "OWNER_SET_IFSC", {"ownerId": owner.id}, db, role="OWNER")
         return
 
-    if session and session.state == "OWNER_SET_UPI":
-        new_upi = text.strip()
-        if not amount_service.validate_upi_id(new_upi):
-            await whatsapp_service.send_text(phone, "⚠️ Invalid UPI format. Please try again:")
+    if session and session.state == "OWNER_SET_IFSC":
+        import re
+        new_ifsc = text.strip().upper()
+        if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', new_ifsc):
+            await whatsapp_service.send_text(phone, "⚠️ Invalid IFSC format (must be 11 chars, e.g. SBIN0001234). Please try again:")
             return
-        owner.upiId = new_upi
+        context = json.loads(session.context) if session.context else {}
+        context["newIfsc"] = new_ifsc
+        await whatsapp_service.send_text(phone, f"IFSC: *{new_ifsc}*\n\nNow enter new *Bank Account Number*:")
+        await update_session(phone, "OWNER_SET_ACCOUNT", context, db, role="OWNER")
+        return
+
+    if session and session.state == "OWNER_SET_ACCOUNT":
+        new_acct = text.strip()
+        if not new_acct.isdigit() or len(new_acct) < 8 or len(new_acct) > 18:
+            await whatsapp_service.send_text(phone, "⚠️ Invalid account number (must be 8-18 digits). Please try again:")
+            return
+        context = json.loads(session.context) if session.context else {}
+        owner.ifscCode = context.get("newIfsc", "")
+        owner.accountNumber = new_acct
         owner.razorpayFundAccountId = None  # Reset cached fund account
         await db.delete(session)
         await db.commit()
-        await whatsapp_service.send_text(phone, f"✅ UPI updated to {new_upi}")
+        masked = "X" * (len(new_acct) - 4) + new_acct[-4:]
+        await whatsapp_service.send_text(phone, f"✅ Bank details updated!\n• IFSC: {owner.ifscCode}\n• Account: {masked}")
         return
 
     if lower == "set_timing":

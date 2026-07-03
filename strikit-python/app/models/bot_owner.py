@@ -22,6 +22,8 @@ class BotOwner(Base):
     msmeCardUrl = Column(String, nullable=True)
     utilityBillUrl = Column(String, nullable=True)
     upiId = Column(String, nullable=True)
+    ifscCode = Column(String, nullable=True)
+    accountNumber = Column(String, nullable=True)
     razorpayContactId = Column(String, nullable=True)
     razorpayFundAccountId = Column(String, nullable=True)
     address = Column(String, nullable=True)
