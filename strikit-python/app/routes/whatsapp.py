@@ -1712,31 +1712,122 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
                 else:
                     evening_slots.append(s)
 
-        sections = []
-        if morning_slots:
-            sections.append({
-                "title": "Morning Slots",
-                "rows": [{"id": s, "title": s, "description": "Available"} for s in morning_slots[:10]]
-            })
-        if afternoon_slots:
-            sections.append({
-                "title": "Afternoon Slots",
-                "rows": [{"id": s, "title": s, "description": "Available"} for s in afternoon_slots[:10]]
-            })
-        if evening_slots:
-            sections.append({
-                "title": "Evening Slots",
-                "rows": [{"id": s, "title": s, "description": "Available"} for s in evening_slots[:10]]
-            })
-        if night_slots:
-            sections.append({
-                "title": "Night Slots",
-                "rows": [{"id": s, "title": s, "description": "Available"} for s in night_slots[:10]]
-            })
+        if len(available) <= 10:
+            sections = []
+            if morning_slots:
+                sections.append({
+                    "title": "Morning Slots",
+                    "rows": [{"id": s, "title": s, "description": "Available"} for s in morning_slots]
+                })
+            if afternoon_slots:
+                sections.append({
+                    "title": "Afternoon Slots",
+                    "rows": [{"id": s, "title": s, "description": "Available"} for s in afternoon_slots]
+                })
+            if evening_slots:
+                sections.append({
+                    "title": "Evening Slots",
+                    "rows": [{"id": s, "title": s, "description": "Available"} for s in evening_slots]
+                })
+            if night_slots:
+                sections.append({
+                    "title": "Night Slots",
+                    "rows": [{"id": s, "title": s, "description": "Available"} for s in night_slots]
+                })
+
+            await whatsapp_service.send_list(
+                phone,
+                f"⏰ Available slots for *{date}* at *{context.get('turfName', '')}*:",
+                "⏰ Select Slot",
+                sections,
+            )
+            await update_session(phone, "AWAITING_SLOT_SELECTION", context, db)
+            return
+        else:
+            sections = [{
+                "title": "Select Time Period",
+                "rows": [
+                    {"id": "period_morning", "title": "🌅 Morning", "description": "Before 12:00 PM"},
+                    {"id": "period_afternoon", "title": "☀️ Afternoon", "description": "12:00 PM - 04:00 PM"},
+                    {"id": "period_evening", "title": "🌆 Evening", "description": "04:00 PM - 08:00 PM"},
+                    {"id": "period_night", "title": "🌃 Night", "description": "After 08:00 PM"},
+                ]
+            }]
+
+            await whatsapp_service.send_list(
+                phone,
+                f"⏰ Select a time period for *{date}* at *{context.get('turfName', '')}*:",
+                "⏰ Select Period",
+                sections,
+            )
+            await update_session(phone, "AWAITING_PERIOD_SELECTION", context, db)
+            return
+
+    # Period selection
+    if state == "AWAITING_PERIOD_SELECTION" and text.startswith("period_"):
+        period = text.replace("period_", "")
+        date = context.get("selectedDate")
+        owner_id = context.get("ownerId")
+
+        existing = (await db.execute(
+            select(BotTurfSlot).where(
+                BotTurfSlot.ownerId == owner_id,
+                BotTurfSlot.date == date,
+            )
+        )).scalars().all()
+
+        booked_or_blocked = {s.timeSlot for s in existing if s.status in ("BOOKED", "BLOCKED")}
+
+        owner = await db.get(BotOwner, owner_id)
+        all_slots = _generate_time_slots(owner.openingTime, owner.closingTime)
+        available = [s for s in all_slots if s not in booked_or_blocked]
+
+        filtered = []
+        for s in available:
+            try:
+                dt_time = datetime.strptime(s.strip(), "%I:%M %p").time()
+                hour = dt_time.hour
+                if period == "morning" and hour < 12:
+                    filtered.append(s)
+                elif period == "afternoon" and 12 <= hour < 16:
+                    filtered.append(s)
+                elif period == "evening" and 16 <= hour < 20:
+                    filtered.append(s)
+                elif period == "night" and hour >= 20:
+                    filtered.append(s)
+            except Exception:
+                if period == "morning" and "AM" in s:
+                    filtered.append(s)
+                elif period == "evening" and "PM" in s:
+                    filtered.append(s)
+
+        if not filtered:
+            await whatsapp_service.send_text(phone, f"No slots available for the selected period. Please choose another period or date:")
+            sections = [{
+                "title": "Select Time Period",
+                "rows": [
+                    {"id": "period_morning", "title": "🌅 Morning", "description": "Before 12:00 PM"},
+                    {"id": "period_afternoon", "title": "☀️ Afternoon", "description": "12:00 PM - 04:00 PM"},
+                    {"id": "period_evening", "title": "🌆 Evening", "description": "04:00 PM - 08:00 PM"},
+                    {"id": "period_night", "title": "🌃 Night", "description": "After 08:00 PM"},
+                ]
+            }]
+            await whatsapp_service.send_list(
+                phone,
+                f"⏰ Select a time period for *{date}* at *{context.get('turfName', '')}*:",
+                "⏰ Select Period",
+                sections,
+            )
+            return
+
+        sections = [{
+            "title": f"{period.capitalize()} Slots",
+            "rows": [{"id": s, "title": s, "description": "Available"} for s in filtered[:10]]
+        }]
 
         await whatsapp_service.send_list(
             phone,
-            f"⏰ Available slots for *{date}* at *{context.get('turfName', '')}*:",
+            f"⏰ Available slots for *{date}* ({period.capitalize()}):",
             "⏰ Select Slot",
             sections,
         )
