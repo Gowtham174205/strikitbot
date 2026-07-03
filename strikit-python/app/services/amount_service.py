@@ -24,7 +24,7 @@ SUBSCRIPTION_FEE_PAISE: int = settings.SUBSCRIPTION_FEE_PAISE            # 69900
 def calculate_booking_split(owner_price_per_hour_paise: int) -> dict:
     """
     Calculate the payment split for a turf booking.
-    The customer pays the exact hourly rate. Commission is deducted from this total.
+    The customer pays the owner's hourly rate plus the platform fee.
 
     Args:
         owner_price_per_hour_paise: Owner's hourly rate in PAISE (from database)
@@ -36,8 +36,8 @@ def calculate_booking_split(owner_price_per_hour_paise: int) -> dict:
         raise TypeError(f"owner_price_per_hour_paise must be int, got {type(owner_price_per_hour_paise)}")
 
     platform_fee_paise = PLATFORM_BOOKING_FEE_PAISE
-    total_paise = owner_price_per_hour_paise
-    owner_share_paise = total_paise - platform_fee_paise
+    owner_share_paise = owner_price_per_hour_paise
+    total_paise = owner_share_paise + platform_fee_paise
 
     # ── Safety Guards ──
     if owner_share_paise <= 0:
@@ -57,12 +57,12 @@ def calculate_booking_split(owner_price_per_hour_paise: int) -> dict:
 
 
 def calculate_multi_slot_split(owner_price_per_hour_paise: int, hours: int) -> dict:
-    """Calculate split for multi-hour booking where commission is deducted from total."""
+    """Calculate split for multi-hour booking where commission is added to total."""
     if hours < 1 or hours > 8:
         raise ValueError(f"Hours must be 1-8, got {hours}")
-    total_paise = owner_price_per_hour_paise * hours
     platform_fee_paise = PLATFORM_BOOKING_FEE_PAISE  # Flat fee regardless of hours
-    owner_share_paise = total_paise - platform_fee_paise
+    owner_share_paise = owner_price_per_hour_paise * hours
+    total_paise = owner_share_paise + platform_fee_paise
 
     if owner_share_paise <= 0:
         raise ValueError(f"Owner share must be positive, got {owner_share_paise} paise")
