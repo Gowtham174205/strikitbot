@@ -75,6 +75,9 @@ def create_booking_link(
         )
 
     try:
+        import time
+        expire_by = int(time.time()) + (15 * 60) # 15 minutes from now
+        
         link = client.payment_link.create({
             "amount": total_amount_paise,  # Already in paise! No Math.round needed.
             "currency": "INR",
@@ -85,6 +88,7 @@ def create_booking_link(
             },
             "notify": {"sms": False, "email": False},
             "reminder_enable": False,
+            "expire_by": expire_by,
             "notes": {
                 "type": "booking",
                 "phone": str(phone),

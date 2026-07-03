@@ -88,7 +88,7 @@ async def execute_payout(
 
     logger.info(
         f"[Payout] Initiating ₹{amount_paise / 100:.2f} payout to "
-        f"owner {owner.name} (Route ID: {owner.razorpayContactId if is_route else 'None'}, UPI: {owner.upiId})"
+        f"owner {owner.name} (Route ID: {owner.razorpayContactId if is_route else 'None'})"
     )
 
     # ── Safety Guard: Amount must be positive integer ──

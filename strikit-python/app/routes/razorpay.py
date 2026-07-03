@@ -218,6 +218,36 @@ async def _handle_booking_payment(
         ).scalars().first()
 
         if existing_slot:
+            if existing_slot.status == "BOOKED":
+                logger.warning(f"[Razorpay Webhook] DOUBLE BOOKING DETECTED! Slot {slot_time} on {date} for Owner {owner_id}. Refund required.")
+                try:
+                    # Attempt automatic refund
+                    from app.services.payment_service import refund_payment
+                    refund_payment(razorpay_payment_id, amount_paid_paise)
+                    logger.info(f"[Razorpay Webhook] Successfully refunded payment {razorpay_payment_id}")
+                    
+                    # Notify user about the refund
+                    refund_amount_rupees = amount_service.paise_to_rupees(amount_paid_paise)
+                    await whatsapp_service.send_text(
+                        phone,
+                        f"⚠️ *Booking Failed*\n\n"
+                        f"We're sorry, but the slot *{slot_time}* on *{date}* was just booked by someone else right before you paid.\n\n"
+                        f"Your payment of ₹{refund_amount_rupees} has been *automatically refunded* and should reflect in your account soon.\n"
+                        f"Please try booking a different slot. We apologize for the inconvenience."
+                    )
+                except Exception as refund_err:
+                    logger.error(f"[Razorpay Webhook] Refund failed for double booking {razorpay_payment_id}: {refund_err}")
+                    # Notify user that manual refund is required
+                    await whatsapp_service.send_text(
+                        phone,
+                        f"⚠️ *Booking Failed*\n\n"
+                        f"We're sorry, the slot *{slot_time}* on *{date}* was just booked by someone else.\n\n"
+                        f"Our automated refund encountered an issue, but don't worry! Our support team will manually refund your payment shortly."
+                    )
+                
+                await db.rollback()
+                return JSONResponse(status_code=200, content={"status": "double_booking_handled"})
+            
             existing_slot.status = "BOOKED"
             slot = existing_slot
         else:
@@ -255,7 +285,7 @@ async def _handle_booking_payment(
             totalPaidPaise=amount_paid_paise,
             ownerSharePaise=owner_share_paise,
             platformFeePaise=platform_fee_paise,
-            ownerUpiId=owner.upiId or "",
+            ownerUpiId="", # Deprecated, now using bank details via Razorpay Route
             status="PROCESSING",
             idempotencyKey=idempotency_key,
         )
