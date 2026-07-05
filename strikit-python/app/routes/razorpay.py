@@ -42,52 +42,57 @@ async def razorpay_webhook(request: Request, db: AsyncSession = Depends(get_db))
     2. Subscription payments (type=subscription)
     3. Join request payments (type=join_request)
     """
-    raw_body = await request.body()
-    signature = request.headers.get("x-razorpay-signature", "")
-
-    # ── Step 1: Verify webhook signature ──
-    if not verify_razorpay_signature(raw_body, signature):
-        logger.warning("[Razorpay Webhook] Signature verification failed")
-        return JSONResponse(status_code=403, content={"error": "Invalid signature"})
-
     try:
-        payload = json.loads(raw_body)
-    except json.JSONDecodeError:
-        return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
+        raw_body = await request.body()
+        signature = request.headers.get("x-razorpay-signature", "")
 
-    event = payload.get("event", "")
-    logger.info(f"[Razorpay Webhook] Event: {event}")
+        # ── Step 1: Verify webhook signature ──
+        if not verify_razorpay_signature(raw_body, signature):
+            logger.warning("[Razorpay Webhook] Signature verification failed")
+            return JSONResponse(status_code=403, content={"error": "Invalid signature"})
 
-    if event != "payment_link.paid":
-        return JSONResponse(status_code=200, content={"status": "ignored"})
+        try:
+            payload = json.loads(raw_body)
+        except json.JSONDecodeError:
+            return JSONResponse(status_code=400, content={"error": "Invalid JSON"})
 
-    # ── Step 2: Extract payment data from Razorpay payload ──
-    payment_link = payload.get("payload", {}).get("payment_link", {}).get("entity", {})
-    payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+        event = payload.get("event", "")
+        logger.info(f"[Razorpay Webhook] Event: {event}")
 
-    notes = payment_link.get("notes", {})
-    payment_type = notes.get("type", "")
-    razorpay_payment_id = payment_entity.get("id", "")
-    amount_paid_paise = int(payment_entity.get("amount", 0))  # Razorpay sends in paise
-    payment_link_id = payment_link.get("id", "")
+        if event != "payment_link.paid":
+            return JSONResponse(status_code=200, content={"status": "ignored"})
 
-    logger.info(
-        f"[Razorpay Webhook] Type={payment_type} | PaymentID={razorpay_payment_id} "
-        f"| AmountPaise={amount_paid_paise} | LinkID={payment_link_id}"
-    )
+        # ── Step 2: Extract payment data from Razorpay payload ──
+        payment_link = payload.get("payload", {}).get("payment_link", {}).get("entity", {})
+        payment_entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
 
-    # ── Route by payment type ──
-    if payment_type == "booking":
-        return await _handle_booking_payment(
-            db, payload, notes, razorpay_payment_id, amount_paid_paise, payment_link_id
+        notes = payment_link.get("notes", {})
+        payment_type = notes.get("type", "")
+        razorpay_payment_id = payment_entity.get("id", "")
+        amount_paid_paise = int(payment_entity.get("amount", 0))  # Razorpay sends in paise
+        payment_link_id = payment_link.get("id", "")
+
+        logger.info(
+            f"[Razorpay Webhook] Type={payment_type} | PaymentID={razorpay_payment_id} "
+            f"| AmountPaise={amount_paid_paise} | LinkID={payment_link_id}"
         )
-    elif payment_type == "subscription":
-        return await _handle_subscription_payment(db, notes)
-    elif payment_type == "join_request":
-        return await _handle_join_request_payment(db, notes, razorpay_payment_id)
-    else:
-        logger.warning(f"[Razorpay Webhook] Unknown payment type: {payment_type}")
-        return JSONResponse(status_code=200, content={"status": "unknown_type"})
+
+        # ── Route by payment type ──
+        if payment_type == "booking":
+            return await _handle_booking_payment(
+                db, payload, notes, razorpay_payment_id, amount_paid_paise, payment_link_id
+            )
+        elif payment_type == "subscription":
+            return await _handle_subscription_payment(db, notes)
+        elif payment_type == "join_request":
+            return await _handle_join_request_payment(db, notes, razorpay_payment_id)
+        else:
+            logger.warning(f"[Razorpay Webhook] Unknown payment type: {payment_type}")
+            return JSONResponse(status_code=200, content={"status": "unknown_type"})
+
+    except Exception as global_err:
+        logger.error(f"[Razorpay Webhook Global Error] {global_err}")
+        return JSONResponse(status_code=500, content={"error": "internal_error"})
 
 
 # ══════════════════════════════════════════════════════════════════

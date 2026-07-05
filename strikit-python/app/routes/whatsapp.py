@@ -127,6 +127,22 @@ async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db))
         return JSONResponse(status_code=200, content={"status": "ok"})
     except Exception as e:
         logger.error(f"[WA Webhook Error] {e}")
+        try:
+            # Fallback error response to the user
+            body = await request.json()
+            entry = (body.get("entry") or [{}])[0]
+            change = (entry.get("changes") or [{}])[0]
+            value = change.get("value", {})
+            if value and value.get("messages"):
+                message = value["messages"][0]
+                from_phone = message["from"]
+                await whatsapp_service.send_text(
+                    from_phone,
+                    "⚠️ *Oops! Something went wrong on our end.* \n\nPlease type *'Hi'* to start over or contact support."
+                )
+        except Exception as fallback_e:
+            logger.error(f"[WA Webhook Fallback Error] {fallback_e}")
+            
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
