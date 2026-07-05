@@ -76,7 +76,7 @@ def create_booking_link(
 
     try:
         import time
-        expire_by = int(time.time()) + (15 * 60) # 15 minutes from now
+        expire_by = int(time.time()) + (20 * 60) # 20 minutes from now to satisfy >=15m rule
         
         link = client.payment_link.create({
             "amount": total_amount_paise,  # Already in paise! No Math.round needed.
