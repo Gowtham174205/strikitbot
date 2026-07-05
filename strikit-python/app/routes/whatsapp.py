@@ -1980,13 +1980,13 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         # Split platform fee for transparency
         try:
             fee_float = float(fee_rupees)
-            gateway_fee = round(fee_float * 0.10, 2)
-            gst_tax = round(fee_float * 0.18, 2)
-            platform_fee = round(fee_float - gateway_fee - gst_tax, 2)
+            gateway_fee = round(fee_float * 0.30, 2)
+            convenience_fee = round(fee_float * 0.30, 2)
+            platform_fee = round(fee_float - gateway_fee - convenience_fee, 2)
             
             fee_text = (
-                f"• Platform Fee: ₹{platform_fee:.2f}\n"
-                f"• SGST & CGST (18%): ₹{gst_tax:.2f}\n"
+                f"• Platform Maintenance: ₹{platform_fee:.2f}\n"
+                f"• Convenience Fee: ₹{convenience_fee:.2f}\n"
                 f"• Payment Gateway Fee: ₹{gateway_fee:.2f}"
             )
         except Exception:
