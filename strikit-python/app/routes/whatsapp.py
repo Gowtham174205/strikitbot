@@ -1977,6 +1977,21 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         )
         context["payLink"] = pay_link
 
+        # Split platform fee for transparency
+        try:
+            fee_float = float(fee_rupees)
+            gateway_fee = round(fee_float * 0.10, 2)
+            gst_tax = round(fee_float * 0.18, 2)
+            platform_fee = round(fee_float - gateway_fee - gst_tax, 2)
+            
+            fee_text = (
+                f"• Platform Fee: ₹{platform_fee:.2f}\n"
+                f"• SGST & CGST (18%): ₹{gst_tax:.2f}\n"
+                f"• Payment Gateway Fee: ₹{gateway_fee:.2f}"
+            )
+        except Exception:
+            fee_text = f"• STRIKIT Booking Fee: ₹{fee_rupees}"
+
         await whatsapp_service.send_text(
             phone,
             f"📋 *Booking Summary - {owner.turfName}* 📋\n\n"
@@ -1989,7 +2004,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             f"• Team Name: {context['teamName']}\n\n"
             f"*Payment Breakdown:*\n"
             f"• Turf Rate: ₹{rate_rupees}\n"
-            f"• STRIKIT Booking Fee: ₹{fee_rupees}\n"
+            f"{fee_text}\n"
             f"• *Total Amount:* *₹{total_rupees}*\n\n"
             f"🔗 *Payment Link:* {pay_link}\n\n"
             f"_Powered by STRIKIT_",
