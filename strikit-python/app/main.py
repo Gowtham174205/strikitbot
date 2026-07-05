@@ -63,40 +63,48 @@ async def lifespan(app: FastAPI):
     os.makedirs("reports", exist_ok=True)
     os.makedirs("backups", exist_ok=True)
 
-    # Start APScheduler
-    from apscheduler.schedulers.asyncio import AsyncIOScheduler
-    scheduler = AsyncIOScheduler()
+    # Ensure only ONE Gunicorn worker starts the scheduler
+    import socket
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.bind(("127.0.0.1", 55555))
+        app.state.scheduler_lock = sock  # Keep socket open to hold the lock
+        
+        # Start APScheduler
+        from apscheduler.schedulers.asyncio import AsyncIOScheduler
+        scheduler = AsyncIOScheduler()
 
-    async def _run_monthly_report():
-        async with async_session_factory() as db:
-            from app.schedulers.monthly_report import check_and_send_monthly_report
-            await check_and_send_monthly_report(db)
+        async def _run_monthly_report():
+            async with async_session_factory() as db:
+                from app.schedulers.monthly_report import check_and_send_monthly_report
+                await check_and_send_monthly_report(db)
 
-    async def _run_subscription_check():
-        async with async_session_factory() as db:
-            from app.schedulers.subscription_expiry import check_subscription_expiry
-            await check_subscription_expiry(db)
+        async def _run_subscription_check():
+            async with async_session_factory() as db:
+                from app.schedulers.subscription_expiry import check_subscription_expiry
+                await check_subscription_expiry(db)
 
-    async def _run_slot_expiry():
-        async with async_session_factory() as db:
-            from app.schedulers.slot_expiry import check_slot_expiry
-            await check_slot_expiry(db)
+        async def _run_slot_expiry():
+            async with async_session_factory() as db:
+                from app.schedulers.slot_expiry import check_slot_expiry
+                await check_slot_expiry(db)
 
-    async def _run_reminders():
-        async with async_session_factory() as db:
-            from app.schedulers.slot_expiry import send_booking_reminders
-            await send_booking_reminders(db)
+        async def _run_reminders():
+            async with async_session_factory() as db:
+                from app.schedulers.slot_expiry import send_booking_reminders
+                await send_booking_reminders(db)
 
-    # Schedule jobs
-    scheduler.add_job(_run_monthly_report, "interval", hours=1, id="monthly_report")
-    scheduler.add_job(_run_subscription_check, "interval", hours=1, id="subscription_check")
-    scheduler.add_job(_run_slot_expiry, "interval", minutes=1, id="slot_expiry")
-    scheduler.add_job(_run_reminders, "interval", hours=2, id="booking_reminders")
+        # Schedule jobs
+        scheduler.add_job(_run_monthly_report, "interval", hours=1, id="monthly_report")
+        scheduler.add_job(_run_subscription_check, "interval", hours=1, id="subscription_check")
+        scheduler.add_job(_run_slot_expiry, "interval", minutes=1, id="slot_expiry")
+        scheduler.add_job(_run_reminders, "interval", hours=2, id="booking_reminders")
 
-    scheduler.start()
-    logger.info("⏰ Schedulers started: monthly_report, subscription_check, slot_expiry, booking_reminders")
-
-    app.state.scheduler = scheduler
+        scheduler.start()
+        logger.info("⏰ Schedulers started (This worker grabbed the scheduler lock).")
+        app.state.scheduler = scheduler
+    except OSError:
+        logger.info("Scheduler already running in another worker. Skipping scheduler init.")
 
     logger.info(f"🟢 STRIKIT Bot Server ready on port {settings.PORT}")
 
