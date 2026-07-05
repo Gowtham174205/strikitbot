@@ -1992,8 +1992,7 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         except Exception:
             fee_text = f"• STRIKIT Booking Fee: ₹{fee_rupees}"
 
-        await whatsapp_service.send_text(
-            phone,
+        summary_text = (
             f"📋 *Booking Summary - {owner.turfName}* 📋\n\n"
             f"Hello {context['captainName']}, here is your booking summary:\n\n"
             f"• Turf: *{owner.turfName}*\n"
@@ -2006,8 +2005,14 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             f"• Turf Rate: ₹{rate_rupees}\n"
             f"{fee_text}\n"
             f"• *Total Amount:* *₹{total_rupees}*\n\n"
-            f"🔗 *Payment Link:* {pay_link}\n\n"
-            f"_Powered by STRIKIT_",
+            f"_Powered by STRIKIT_"
+        )
+
+        await whatsapp_service.send_url_button(
+            to=phone,
+            text=summary_text,
+            button_text="Pay Now",
+            url=pay_link
         )
         await update_session(phone, "AWAITING_PAYMENT_CONFIRMATION", context, db)
         return

@@ -89,6 +89,27 @@ async def send_buttons(to: str, text: str, buttons: list[dict]) -> dict:
     })
 
 
+async def send_url_button(to: str, text: str, button_text: str, url: str) -> dict:
+    """Send an interactive message with a URL button (CTA URL)."""
+    return await _send_whatsapp_request({
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "cta_url",
+            "body": {"text": text},
+            "action": {
+                "name": "cta_url",
+                "parameters": {
+                    "display_text": button_text[:20],
+                    "url": url
+                }
+            }
+        },
+    })
+
+
 async def send_list(to: str, text: str, button_text: str, sections: list[dict]) -> dict:
     """Send interactive list menu message."""
     return await _send_whatsapp_request({
