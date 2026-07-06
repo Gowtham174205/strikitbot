@@ -927,6 +927,22 @@ async def handle_owner_commands(
             )
             return
 
+    # Commands list
+    if lower in ("commands", "/commands", "command", "/command"):
+        commands_list = (
+            "🤖 *Available STRIKIT Commands*\n\n"
+            "Here are the commands you can use anytime:\n\n"
+            "🔹 *menu* - Open your main dashboard\n"
+            "🔹 *bookings* - View today's bookings\n"
+            "🔹 *revenue* - View and download your revenue report (Premium)\n"
+            "🔹 *settings* - Manage price, timings, and bank details (Premium)\n"
+            "🔹 *upgrade* - Upgrade your STRIKIT subscription plan\n"
+            "🔹 *refund* - Request a subscription refund (within 7 days)\n"
+            "🔹 *commands* - Show this list of commands"
+        )
+        await whatsapp_service.send_text(phone, commands_list)
+        return
+
     # Menu
     if lower in ("hi", "hello", "menu", "/menu", "help"):
         if owner.subscriptionPlan == "BASIC":
