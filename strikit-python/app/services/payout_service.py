@@ -71,7 +71,40 @@ async def create_fund_account(contact_id: str, upi_id: str) -> str:
         logger.error(f"[Payout] Fund account creation failed: {e}")
         raise
 
+async def create_route_account(name: str, email: str, business_name: str, ifsc_code: str, account_number: str) -> str:
+    """Create a Razorpay Route Linked Account."""
+    if not settings.razorpay_configured:
+        logger.info(f"[Payout] MOCK Route account for {name}")
+        return f"acc_mock_{hash(name) % 100000}"
 
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.razorpay.com/beta/accounts",
+                json={
+                    "name": name,
+                    "email": email,
+                    "tnc_accepted": True,
+                    "account_details": {
+                        "business_name": business_name,
+                        "business_type": "individual",
+                    },
+                    "bank_account": {
+                        "ifsc_code": ifsc_code.strip(),
+                        "beneficiary_name": name,
+                        "account_number": account_number.strip()
+                    }
+                },
+                headers={"Authorization": _auth_header(), "Content-Type": "application/json"},
+            )
+            resp.raise_for_status()
+            return resp.json()["id"]
+    except Exception as e:
+        logger.error(f"[Payout] Route account creation failed: {e}")
+        # Log response body if available
+        if hasattr(e, "response") and e.response:
+            logger.error(f"[Payout] Response: {e.response.text}")
+        raise
 async def execute_payout(
     owner,
     amount_paise: int,
