@@ -325,10 +325,14 @@ async def handle_whatsapp_message(
                     "turfName": owner.turfName
                 }
 
+                rate_display = f"₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hour"
+                if getattr(owner, "weekendPricePerHourPaise", None):
+                    rate_display += f" (Weekdays) | ₹{amount_service.paise_to_rupees(owner.weekendPricePerHourPaise)}/hr (Weekends)"
+
                 caption_text = (
                     f"🏟️ *{owner.turfName}* 🏟️\n\n"
                     f"📍 *Address:* {owner.address or 'Address not configured'}\n"
-                    f"💰 *Rate:* ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}/hour\n"
+                    f"💰 *Rate:* {rate_display}\n"
                     f"⏰ *Timings:* {owner.openingTime} - {owner.closingTime}\n"
                     f"🗺️ *Google Maps:* {owner.location}"
                 )
@@ -1029,6 +1033,7 @@ async def handle_owner_commands(
             phone,
             f"⚙️ *Settings — {owner.turfName}*\n\nCurrent Config:\n"
             f"• Price/Hour: ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}\n"
+            f"• Weekend Price: ₹{amount_service.paise_to_rupees(owner.weekendPricePerHourPaise) if owner.weekendPricePerHourPaise else 'Not set'}\n"
             f"• Opening: {owner.openingTime}\n"
             f"• Closing: {owner.closingTime}\n"
             f"• IFSC: {owner.ifscCode or 'Not set'}\n"
@@ -1038,11 +1043,13 @@ async def handle_owner_commands(
             [{
                 "title": "Settings",
                 "rows": [
-                    {"id": "set_price", "title": "💰 Change Price", "description": "Set hourly rate"},
+                    {"id": "set_price", "title": "💰 Change Price", "description": "Set regular hourly rate"},
+                    {"id": "set_weekend_price", "title": "🔥 Set Weekend Price", "description": "Rate for Sat & Sun"},
                     {"id": "set_timing", "title": "⏰ Change Timings", "description": "Opening/closing hours"},
                     {"id": "set_bank", "title": "🏦 Change Bank Details", "description": "IFSC & Account Number"},
                     {"id": "block_slot", "title": "🔒 Block Slot", "description": "Block a time slot"},
-                    {"id": "get_qr", "title": "🖼️ Get Booking QR & Link", "description": "Download turf QR Code & Link"},
+                    {"id": "unblock_slot", "title": "🔓 Unblock Slot", "description": "Unblock a time slot"},
+                    {"id": "get_qr", "title": "🖼️ Get Booking QR", "description": "Download turf QR Code"},
                 ],
             }],
         )
@@ -1199,6 +1206,141 @@ async def handle_owner_commands(
             await whatsapp_service.send_text(phone, f"✅ Price updated to ₹{amount_service.paise_to_rupees(new_paise)}/hour")
         except ValueError:
             await whatsapp_service.send_text(phone, "Please enter a valid number (e.g. 1500):")
+        return
+
+    if lower == "set_weekend_price":
+        if not owner.subscriptionActive:
+            await whatsapp_service.send_text(phone, "⚠️ *Subscription Required*\nPlease complete your payment first.")
+            return
+        await whatsapp_service.send_text(phone, "Enter new Weekend Price (Sat & Sun) in Rupees (e.g. 1800):")
+        await update_session(phone, "OWNER_SET_WEEKEND_PRICE", {"ownerId": owner.id}, db, role="OWNER")
+        return
+
+    if session and session.state == "OWNER_SET_WEEKEND_PRICE":
+        try:
+            new_price = int(text.strip())
+            new_paise = amount_service.rupees_to_paise(new_price)
+            if new_paise < 10000 or new_paise > 5000000:
+                await whatsapp_service.send_text(phone, "Price must be between ₹100 and ₹50,000.")
+                return
+            owner.weekendPricePerHourPaise = new_paise
+            await db.delete(session)
+            await db.commit()
+            await whatsapp_service.send_text(phone, f"✅ Weekend Price updated to ₹{amount_service.paise_to_rupees(new_paise)}/hour")
+        except ValueError:
+            await whatsapp_service.send_text(phone, "Please enter a valid number (e.g. 1800):")
+        return
+
+    if lower == "block_slot":
+        # Ask for Date
+        from datetime import datetime as dt, timedelta
+        now_ist = dt.utcnow() + timedelta(hours=5, minutes=30)
+        buttons = []
+        for i in range(3):
+            d = now_ist + timedelta(days=i)
+            btn_id = f"block_dt_{d.strftime('%Y-%m-%d')}"
+            buttons.append({"id": btn_id, "title": d.strftime('%d %b (%a)')})
+        
+        await whatsapp_service.send_buttons(
+            phone,
+            "📅 Select the date you want to block a slot:",
+            buttons
+        )
+        return
+
+    if lower.startswith("block_dt_"):
+        target_date = lower.replace("block_dt_", "")
+        await whatsapp_service.send_text(
+            phone,
+            f"You selected {target_date}.\n\nReply with the exact time slot you want to block (e.g. `06:00 PM` or `07:00 AM`):"
+        )
+        await update_session(phone, "OWNER_BLOCK_TIME", {"ownerId": owner.id, "date": target_date}, db, role="OWNER")
+        return
+
+    if session and session.state == "OWNER_BLOCK_TIME":
+        context = json.loads(session.context)
+        target_date = context["date"]
+        time_slot = text.strip().upper()
+        
+        from app.models.bot_turf_slot import BotTurfSlot
+        
+        # Check if already booked
+        existing_slot = (await db.execute(
+            select(BotTurfSlot)
+            .where(BotTurfSlot.ownerId == owner.id, BotTurfSlot.date == target_date, BotTurfSlot.timeSlot == time_slot)
+        )).scalars().first()
+        
+        if existing_slot and existing_slot.status == "BOOKED":
+            await whatsapp_service.send_text(phone, "⚠️ This slot is already booked by a customer! You cannot block it.")
+            await db.delete(session)
+            await db.commit()
+            return
+            
+        if not existing_slot:
+            existing_slot = BotTurfSlot(
+                ownerId=owner.id,
+                date=target_date,
+                timeSlot=time_slot,
+                status="BLOCKED",
+                blockedByOwner=True
+            )
+            db.add(existing_slot)
+        else:
+            existing_slot.status = "BLOCKED"
+            existing_slot.blockedByOwner = True
+            
+        await db.delete(session)
+        await db.commit()
+        await whatsapp_service.send_text(phone, f"✅ Slot {time_slot} on {target_date} has been successfully BLOCKED.")
+        return
+
+    if lower == "unblock_slot":
+        # Show only blocked slots today/tomorrow
+        from datetime import datetime as dt, timedelta
+        from app.models.bot_turf_slot import BotTurfSlot
+        now_ist = dt.utcnow() + timedelta(hours=5, minutes=30)
+        dates = [now_ist.strftime("%Y-%m-%d"), (now_ist + timedelta(days=1)).strftime("%Y-%m-%d")]
+        
+        blocked = (await db.execute(
+            select(BotTurfSlot)
+            .where(BotTurfSlot.ownerId == owner.id, BotTurfSlot.status == "BLOCKED", BotTurfSlot.date.in_(dates))
+        )).scalars().all()
+        
+        if not blocked:
+            await whatsapp_service.send_text(phone, "You don't have any blocked slots today or tomorrow.")
+            return
+            
+        msg = "🔒 *Your Blocked Slots (Next 2 Days)*:\n\n"
+        for i, s in enumerate(blocked):
+            msg += f"{i+1}. {s.date} at {s.timeSlot}\n"
+            
+        msg += "\nTo unblock a slot, reply with `Unblock [Number]` (e.g. `Unblock 1`)."
+        await whatsapp_service.send_text(phone, msg)
+        
+        context = {"blocked_ids": [s.id for s in blocked]}
+        await update_session(phone, "OWNER_UNBLOCK_TIME", context, db, role="OWNER")
+        return
+
+    if session and session.state == "OWNER_UNBLOCK_TIME" and lower.startswith("unblock "):
+        try:
+            idx = int(lower.split("unblock ")[1].strip()) - 1
+            context = json.loads(session.context)
+            blocked_ids = context.get("blocked_ids", [])
+            
+            if 0 <= idx < len(blocked_ids):
+                slot_id = blocked_ids[idx]
+                from app.models.bot_turf_slot import BotTurfSlot
+                slot = await db.get(BotTurfSlot, slot_id)
+                if slot:
+                    slot.status = "AVAILABLE"
+                    slot.blockedByOwner = False
+                    await db.delete(session)
+                    await db.commit()
+                    await whatsapp_service.send_text(phone, f"✅ Slot {slot.timeSlot} on {slot.date} has been UNBLOCKED.")
+                    return
+            await whatsapp_service.send_text(phone, "⚠️ Invalid number.")
+        except Exception:
+            await whatsapp_service.send_text(phone, "⚠️ Please reply with `Unblock 1` etc.")
         return
 
     if lower == "set_bank":
@@ -1958,8 +2100,19 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
             await whatsapp_service.send_text(phone, "Error: Turf owner not found.")
             return
 
+        # Check if weekend (Saturday=5, Sunday=6)
+        from datetime import datetime as dt
+        try:
+            booking_date_obj = dt.strptime(context["selectedDate"], "%Y-%m-%d")
+            if booking_date_obj.weekday() >= 5 and getattr(owner, "weekendPricePerHourPaise", None):
+                base_price = owner.weekendPricePerHourPaise
+            else:
+                base_price = owner.pricePerHourPaise
+        except Exception:
+            base_price = owner.pricePerHourPaise
+
         # ── Calculate split using amount_service (PAISE ONLY) ──
-        split = amount_service.calculate_booking_split(owner.pricePerHourPaise)
+        split = amount_service.calculate_booking_split(base_price)
         total_paise = split["total_paise"]
         rate_rupees = amount_service.paise_to_rupees(split["owner_share_paise"])
         fee_rupees = amount_service.paise_to_rupees(split["platform_fee_paise"])
@@ -2023,7 +2176,17 @@ async def handle_player_flow(phone: str, text: str, db: AsyncSession):
         if not pay_link:
             owner = await db.get(BotOwner, context.get("ownerId"))
             if owner:
-                split = amount_service.calculate_booking_split(owner.pricePerHourPaise)
+                from datetime import datetime as dt
+                try:
+                    b_date = dt.strptime(context["selectedDate"], "%Y-%m-%d")
+                    if b_date.weekday() >= 5 and getattr(owner, "weekendPricePerHourPaise", None):
+                        base_price = owner.weekendPricePerHourPaise
+                    else:
+                        base_price = owner.pricePerHourPaise
+                except Exception:
+                    base_price = owner.pricePerHourPaise
+                    
+                split = amount_service.calculate_booking_split(base_price)
                 pay_link = payment_service.create_booking_link(
                     phone=phone, owner_id=owner.id, date=context["selectedDate"],
                     slot_time=context["selectedSlot"], captain_name=context["captainName"],

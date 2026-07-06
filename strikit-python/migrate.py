@@ -1,14 +1,17 @@
-import asyncio
-from app.database import engine
-from sqlalchemy import text
+import sqlite3
+import os
 
-async def m():
-    try:
-        async with engine.begin() as c:
-            await c.execute(text('ALTER TABLE "BotBooking" ADD COLUMN IF NOT EXISTS "sport" VARCHAR;'))
-            print("Migration successful: sport column verified.")
-    except Exception as e:
-        print(f"Migration failed: {e}")
+db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "strikit.db")
 
-if __name__ == "__main__":
-    asyncio.run(m())
+try:
+    conn = sqlite3.connect(db_path)
+    conn.execute('ALTER TABLE BotOwner ADD COLUMN weekendPricePerHourPaise INTEGER;')
+    conn.commit()
+    print("Migration successful: added weekendPricePerHourPaise")
+except sqlite3.OperationalError as e:
+    if "duplicate column name" in str(e).lower():
+        print("Column already exists. Migration skipped.")
+    else:
+        print(f"Error during migration: {e}")
+finally:
+    conn.close()
