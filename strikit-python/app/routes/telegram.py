@@ -79,23 +79,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 owner.subscriptionActive = False
                 owner.subscriptionExpiry = None
 
-                # Create Razorpay Route Linked Account Automatically
-                try:
-                    if owner.ifscCode and owner.accountNumber:
-                        # Email is required by Route API, synthesize one if we don't have it
-                        email = f"owner_{owner.id}@strikit.in"
-                        acc_id = await payout_service.create_route_account(
-                            name=owner.name,
-                            email=email,
-                            business_name=owner.turfName,
-                            ifsc_code=owner.ifscCode,
-                            account_number=owner.accountNumber
-                        )
-                        owner.razorpayContactId = acc_id
-                        logger.info(f"[Telegram Approve] Created Route Linked Account {acc_id} for owner {owner.id}")
-                except Exception as e:
-                    logger.error(f"[Telegram Approve] Failed to create Route Linked Account for {owner.id}: {e}")
-
                 sub_link = payment_service.create_subscription_link(owner_id)
 
                 # Update session

@@ -541,6 +541,23 @@ async def _handle_subscription_payment(db: AsyncSession, notes: dict) -> JSONRes
     from datetime import timedelta
     owner.subscriptionExpiry = datetime.utcnow() + timedelta(days=days)
 
+    # Create Razorpay Route Linked Account Automatically after payment
+    try:
+        if owner.ifscCode and owner.accountNumber:
+            # Email is required by Route API, synthesize one if we don't have it
+            email = f"owner_{owner.id}@strikit.in"
+            acc_id = await payout_service.create_route_account(
+                name=owner.name,
+                email=email,
+                business_name=owner.turfName,
+                ifsc_code=owner.ifscCode,
+                account_number=owner.accountNumber
+            )
+            owner.razorpayContactId = acc_id
+            logger.info(f"[Razorpay Webhook] Created Route Linked Account {acc_id} for owner {owner.id} after subscription payment")
+    except Exception as e:
+        logger.error(f"[Razorpay Webhook] Failed to create Route Linked Account for {owner.id}: {e}")
+
     # Update session to OWNER_SETUP_PRICE state
     session = (
         await db.execute(select(BotSession).where(BotSession.phone == owner.mobile))
