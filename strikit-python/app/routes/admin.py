@@ -76,22 +76,6 @@ async def approve_owner(
     owner.subscriptionExpiry = None
     if route_account_id:
         owner.razorpayContactId = route_account_id.strip()
-    elif owner.ifscCode and owner.accountNumber:
-        from app.services.razorpay_route import create_razorpay_linked_account
-        try:
-            # Generate dummy email if not available, Razorpay route requires it
-            email = f"owner{owner_id}@strikit.in" 
-            acc_id = create_razorpay_linked_account(
-                name=owner.name,
-                email=email,
-                phone=owner.mobile,
-                bank_account_number=owner.accountNumber,
-                ifsc_code=owner.ifscCode
-            )
-            owner.razorpayContactId = acc_id
-        except Exception as e:
-            # We log but do not fail the approval, admin can manually set it later if needed
-            logger.error(f"[Admin] Failed to auto-create Razorpay Route account for owner {owner_id}: {e}")
 
     sub_link = payment_service.create_subscription_link(owner_id)
 
