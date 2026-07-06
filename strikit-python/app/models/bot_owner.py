@@ -39,6 +39,7 @@ class BotOwner(Base):
     closingTime = Column(String, default="10:00 PM")
     # ── HARDENED: Integer paise instead of Float rupees ──
     pricePerHourPaise = Column(Integer, default=100000)  # ₹1000 = 100000 paise
+    weekendPricePerHourPaise = Column(Integer, nullable=True)  # Optional weekend dynamic pricing
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     churnReminderSentAt = Column(DateTime, nullable=True)
