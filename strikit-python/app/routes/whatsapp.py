@@ -1011,77 +1011,35 @@ async def handle_owner_commands(
 
     # Settings
     if lower in ("owner_settings", "/settings", "settings"):
-        # Launch Flow with pre-filled payload
-        payload = {
-            "screen": "MAIN_FORM",
-            "data": {
-                "name": owner.name or "",
-                "turf_name": owner.turfName or "",
-                "address": owner.address or "",
-                "location": owner.location or "",
-                "price": str(amount_service.paise_to_rupees(owner.pricePerHourPaise)),
-                "weekend_price": str(amount_service.paise_to_rupees(owner.weekendPricePerHourPaise)) if owner.weekendPricePerHourPaise else "0",
-                "opening_time": owner.openingTime or "",
-                "closing_time": owner.closingTime or "",
-                "bank_name": "", # Cannot be easily extracted since we don't store bank_name
-                "account_name": "",
-                "account_number": owner.accountNumber or "",
-                "ifsc": owner.ifscCode or ""
-            }
-        }
-        await whatsapp_service.send_flow(
+        masked_acct = ""
+        if owner.accountNumber:
+            masked_acct = "X" * (len(owner.accountNumber) - 4) + owner.accountNumber[-4:]
+        else:
+            masked_acct = "Not set"
+        await whatsapp_service.send_list(
             phone,
-            f"⚙️ *Settings — {owner.turfName}*\n\nClick below to update your Turf Configuration and Pricing:",
-            settings.WHATSAPP_FLOW_ID,
-            "FLOW_TOKEN_SETTINGS",
-            "⚙️ Open Settings",
-            mode="draft",
-            payload=payload
+            f"⚙️ *Settings — {owner.turfName}*\n\nCurrent Config:\n"
+            f"• Price/Hour: ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}\n"
+            f"• Weekend Price: ₹{amount_service.paise_to_rupees(owner.weekendPricePerHourPaise) if owner.weekendPricePerHourPaise else 'Not set'}\n"
+            f"• Opening: {owner.openingTime}\n"
+            f"• Closing: {owner.closingTime}\n"
+            f"• IFSC: {owner.ifscCode or 'Not set'}\n"
+            f"• Account: {masked_acct}\n"
+            f"• Address: {owner.address or 'Not set'}\n",
+            "Change Settings",
+            [{
+                "title": "Settings",
+                "rows": [
+                    {"id": "set_price", "title": "💰 Change Price", "description": "Set regular hourly rate"},
+                    {"id": "set_weekend_price", "title": "🔥 Set Weekend Price", "description": "Rate for Sat & Sun"},
+                    {"id": "set_timing", "title": "⏰ Change Timings", "description": "Opening/closing hours"},
+                    {"id": "set_bank", "title": "🏦 Change Bank Details", "description": "IFSC & Account Number"},
+                    {"id": "block_slot", "title": "🔒 Block Slot", "description": "Block a time slot"},
+                    {"id": "unblock_slot", "title": "🔓 Unblock Slot", "description": "Unblock a time slot"},
+                    {"id": "get_qr", "title": "🖼️ Get Booking QR", "description": "Download turf QR Code"},
+                ],
+            }],
         )
-        return
-
-    # Handle NFM_REPLY for Settings Updates
-    if text.startswith("NFM_REPLY:"):
-        try:
-            response_data = json.loads(text.replace("NFM_REPLY:", "", 1))
-            
-            # Update Owner Record
-            if "name" in response_data: owner.name = sanitize_input(response_data["name"], 100)
-            if "turf_name" in response_data: owner.turfName = sanitize_input(response_data["turf_name"], 100)
-            if "address" in response_data: owner.address = sanitize_input(response_data["address"], 250)
-            if "location" in response_data: owner.location = sanitize_input(response_data["location"], 500)
-            
-            try:
-                if "price" in response_data: owner.pricePerHourPaise = int(response_data["price"]) * 100
-                if "weekend_price" in response_data: owner.weekendPricePerHourPaise = int(response_data["weekend_price"]) * 100
-            except ValueError:
-                pass
-                
-            if "opening_time" in response_data: owner.openingTime = sanitize_input(response_data["opening_time"], 50)
-            if "closing_time" in response_data: owner.closingTime = sanitize_input(response_data["closing_time"], 50)
-            if "account_number" in response_data: owner.accountNumber = sanitize_input(response_data["account_number"], 50)
-            if "ifsc" in response_data: owner.ifscCode = sanitize_input(response_data["ifsc"], 50)
-            
-            # Recalculate coordinates and search keywords
-            if owner.location:
-                coords = await extract_coordinates_from_url(owner.location)
-                if coords:
-                    owner.latitude = coords["latitude"]
-                    owner.longitude = coords["longitude"]
-            
-            owner.searchKeywords = extract_search_keywords(owner.address, owner.turfName)
-            
-            await db.commit()
-            
-            await whatsapp_service.send_text(
-                phone,
-                f"✅ *Settings Updated Successfully!*\n\nYour changes for *{owner.turfName}* have been saved."
-            )
-        except json.JSONDecodeError:
-            await whatsapp_service.send_text(phone, "❌ Failed to parse form data. Please try again.")
-        except Exception as e:
-            logger.error(f"[Settings Update] Error: {e}")
-            await whatsapp_service.send_text(phone, "❌ An error occurred while saving your settings.")
         return
 
     # Settings actions
