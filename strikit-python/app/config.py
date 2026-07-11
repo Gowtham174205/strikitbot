@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     WHATSAPP_PHONE_NUMBER_ID: str = ""
     WHATSAPP_VERIFY_TOKEN: str = "STRIKIT_TOKEN"
     WHATSAPP_APP_SECRET: str = ""
+    WHATSAPP_FLOW_ID: str = ""
     ONBOARDING_NUMBER: str = "919360756749"
 
     # ── Telegram Bot ──
