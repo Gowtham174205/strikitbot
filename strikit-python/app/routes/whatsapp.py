@@ -1278,8 +1278,6 @@ async def handle_owner_commands(
         target_date = context["date"]
         time_slot = text.strip().upper()
         
-        from app.models.bot_turf_slot import BotTurfSlot
-        
         # Check if already booked
         existing_slot = (await db.execute(
             select(BotTurfSlot)
@@ -1313,7 +1311,6 @@ async def handle_owner_commands(
     if lower == "unblock_slot":
         # Show only blocked slots today/tomorrow
         from datetime import datetime as dt, timedelta
-        from app.models.bot_turf_slot import BotTurfSlot
         now_ist = dt.utcnow() + timedelta(hours=5, minutes=30)
         dates = [now_ist.strftime("%Y-%m-%d"), (now_ist + timedelta(days=1)).strftime("%Y-%m-%d")]
         
@@ -1345,7 +1342,6 @@ async def handle_owner_commands(
             
             if 0 <= idx < len(blocked_ids):
                 slot_id = blocked_ids[idx]
-                from app.models.bot_turf_slot import BotTurfSlot
                 slot = await db.get(BotTurfSlot, slot_id)
                 if slot:
                     slot.status = "AVAILABLE"
