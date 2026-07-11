@@ -146,7 +146,8 @@ async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db))
         except Exception as fallback_e:
             logger.error(f"[WA Webhook Fallback Error] {fallback_e}")
             
-        return JSONResponse(status_code=500, content={"error": str(e)})
+        # Return 200 so Meta doesn't retry and cause an infinite loop
+        return JSONResponse(status_code=200, content={"status": "error_handled", "error": str(e)})
 
 
 # ══════════════════════════════════════════════════════════════════
