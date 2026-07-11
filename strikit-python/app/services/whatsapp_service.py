@@ -147,6 +147,35 @@ async def send_image(to: str, image_url: str, caption: str = "") -> dict:
     })
 
 
+async def send_flow(to: str, text: str, flow_id: str, flow_token: str, button_text: str = "Open Form", mode: str = "draft", payload: dict = None) -> dict:
+    """Send an interactive message that opens a WhatsApp Flow."""
+    if payload is None:
+        payload = {"screen": "MAIN_FORM"}
+
+    return await _send_whatsapp_request({
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "flow",
+            "body": {"text": text},
+            "action": {
+                "name": "flow",
+                "parameters": {
+                    "mode": mode,
+                    "flow_message_version": "3",
+                    "flow_token": flow_token,
+                    "flow_id": flow_id,
+                    "flow_cta": button_text[:20],
+                    "flow_action": "navigate",
+                    "flow_action_payload": payload
+                }
+            }
+        }
+    })
+
+
 async def get_media_url(media_id: str) -> str:
     """Get the download URL for a WhatsApp media object."""
     if not settings.whatsapp_configured:

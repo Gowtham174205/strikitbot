@@ -108,6 +108,9 @@ async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     text = interactive["button_reply"]["id"]
                 elif interactive.get("type") == "list_reply":
                     text = interactive["list_reply"]["id"]
+                elif interactive.get("type") == "nfm_reply":
+                    response_json = interactive["nfm_reply"].get("response_json", "{}")
+                    text = f"NFM_REPLY:{response_json}"
             elif message.get("type") == "image":
                 media_id = message["image"]["id"]
                 media_type = "image"
@@ -602,57 +605,53 @@ async def handle_onboarding_flow(
     lower = text.lower().strip()
 
     if state == "ONBOARDING_START":
-        await whatsapp_service.send_buttons(
+        await whatsapp_service.send_flow(
             phone,
-            "Welcome to STRIKIT Onboarding! Let's get your turf set up.\n\nPlease enter the *Owner Name*:",
-            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
+            "Welcome to STRIKIT Onboarding! Let's get your turf set up in a few simple steps.\n\nPlease click the button below to fill out the Turf Configuration Form:",
+            settings.WHATSAPP_FLOW_ID,
+            "FLOW_TOKEN_ONBOARDING",
+            "📝 Register Turf",
+            mode="draft"
         )
-        await update_session(phone, "AWAITING_OWNER_NAME", context, db, role="ONBOARDING")
+        await update_session(phone, "AWAITING_FORM_SUBMISSION", context, db, role="ONBOARDING")
 
-    elif state == "AWAITING_OWNER_NAME":
-        context["ownerName"] = sanitize_input(text, 100)
-        await whatsapp_service.send_buttons(
-            phone,
-            f"Thank you, {context['ownerName']}. Now, please enter your *Turf Name*:",
-            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-        )
-        await update_session(phone, "AWAITING_TURF_NAME", context, db)
+    elif state == "AWAITING_FORM_SUBMISSION":
+        if text.startswith("NFM_REPLY:"):
+            try:
+                response_data = json.loads(text.replace("NFM_REPLY:", "", 1))
+                context["ownerName"] = sanitize_input(response_data.get("name", ""), 100)
+                context["turfName"] = sanitize_input(response_data.get("turf_name", ""), 100)
+                context["address"] = sanitize_input(response_data.get("address", ""), 250)
+                context["location"] = sanitize_input(response_data.get("location", ""), 500)
+                context["price"] = response_data.get("price", "0")
+                context["weekend_price"] = response_data.get("weekend_price", "0")
+                context["opening_time"] = sanitize_input(response_data.get("opening_time", ""), 50)
+                context["closing_time"] = sanitize_input(response_data.get("closing_time", ""), 50)
+                context["bank_name"] = sanitize_input(response_data.get("bank_name", ""), 100)
+                context["account_name"] = sanitize_input(response_data.get("account_name", ""), 100)
+                context["account_number"] = sanitize_input(response_data.get("account_number", ""), 50)
+                context["ifsc"] = sanitize_input(response_data.get("ifsc", ""), 50)
 
-    elif state == "AWAITING_TURF_NAME":
-        context["turfName"] = sanitize_input(text, 100)
-        await whatsapp_service.send_buttons(
-            phone,
-            f'Got it: "{text}". Now, please enter the *full address* of the turf (e.g. Street, Area, City, Pincode):',
-            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-        )
-        await update_session(phone, "AWAITING_ADDRESS", context, db)
+                # Extract coordinates if possible
+                coords = await extract_coordinates_from_url(context["location"])
+                if coords:
+                    context["latitude"] = coords["latitude"]
+                    context["longitude"] = coords["longitude"]
 
-    elif state == "AWAITING_ADDRESS":
-        context["address"] = sanitize_input(text, 250)
-        await whatsapp_service.send_buttons(
-            phone,
-            "Address saved. Now, please enter the *Location* as a Google Maps link:",
-            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-        )
-        await update_session(phone, "AWAITING_LOCATION", context, db)
-
-    elif state == "AWAITING_LOCATION":
-        context["location"] = sanitize_input(text, 500)
-        # Try to extract lat/lng from Google Maps URL
-        coords = await extract_coordinates_from_url(text)
-        if coords:
-            context["latitude"] = coords["latitude"]
-            context["longitude"] = coords["longitude"]
-        await whatsapp_service.send_buttons(
-            phone,
-            "Please upload your *turf photos* (send as images). Click Done when finished:",
-            [
-                {"id": "onboarding_photos_done", "title": "✅ Done Uploading"},
-                {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
-            ]
-        )
-        context["photoUrls"] = []
-        await update_session(phone, "AWAITING_PHOTOS", context, db)
+                await whatsapp_service.send_buttons(
+                    phone,
+                    f"✅ Details saved for *{context['turfName']}*!\n\nNow, please upload your *turf photos* (send as images). Click Done when finished:",
+                    [
+                        {"id": "onboarding_photos_done", "title": "✅ Done Uploading"},
+                        {"id": "cancel_onboarding", "title": "🔙 Cancel"}
+                    ]
+                )
+                context["photoUrls"] = []
+                await update_session(phone, "AWAITING_PHOTOS", context, db)
+            except json.JSONDecodeError:
+                await whatsapp_service.send_text(phone, "❌ Failed to parse form data. Please try again.")
+        else:
+            await whatsapp_service.send_text(phone, "Please click the 'Register Turf' button above to submit your details, or type 'cancel'.")
 
     elif state == "AWAITING_PHOTOS":
         if text.upper() == "DONE" or lower == "onboarding_photos_done":
@@ -747,57 +746,22 @@ async def handle_onboarding_flow(
                 "⚠️ Invalid input. Please upload a photo or PDF of your *Utility Bill*, or click Skip:",
                 [
                     {"id": "onboarding_utility_skip", "title": "⏭️ Skip Utility"},
-                    {"id": "cancel_onboarding", "title": "🔙 Back to Menu"}
+                    {"id": "cancel_onboarding", "title": "🔙 Cancel"}
                 ]
             )
             return
-
-        await whatsapp_service.send_buttons(
-            phone,
-            "Enter your *Bank IFSC Code* for receiving payouts (e.g. SBIN0001234):",
-            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-        )
-        await update_session(phone, "AWAITING_IFSC", context, db)
-
-    elif state == "AWAITING_IFSC":
-        ifsc = sanitize_input(text, 20).strip().upper()
-
-        # Basic IFSC format validation: 4 letters + 0 + 6 alphanumeric
-        import re
-        if not re.match(r'^[A-Z]{4}0[A-Z0-9]{6}$', ifsc):
-            await whatsapp_service.send_buttons(
-                phone,
-                "⚠️ Invalid IFSC format. IFSC code must be 11 characters (e.g. SBIN0001234). Please try again:",
-                [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-            )
-            return
-
-        context["ifscCode"] = ifsc
-        await whatsapp_service.send_buttons(
-            phone,
-            "Enter your *Bank Account Number* for receiving payouts:",
-            [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-        )
-        await update_session(phone, "AWAITING_ACCOUNT_NUMBER", context, db)
-
-    elif state == "AWAITING_ACCOUNT_NUMBER":
-        acct = sanitize_input(text, 30).strip()
-
-        # Basic account number validation: 8-18 digits
-        if not acct.isdigit() or len(acct) < 8 or len(acct) > 18:
-            await whatsapp_service.send_buttons(
-                phone,
-                "⚠️ Invalid account number. Please enter a valid bank account number (8-18 digits):",
-                [{"id": "cancel_onboarding", "title": "🔙 Back to Menu"}]
-            )
-            return
-
-        context["accountNumber"] = acct
 
         # Create owner record
         photo_str = context.get("photoUrls", "")
         if isinstance(photo_str, list):
             photo_str = ", ".join(photo_str)
+
+        try:
+            price_val = int(context.get("price", "1000")) * 100
+            weekend_price_val = int(context.get("weekend_price", "1000")) * 100
+        except ValueError:
+            price_val = 100000
+            weekend_price_val = 100000
 
         owner = BotOwner(
             name=context["ownerName"],
@@ -809,13 +773,16 @@ async def handle_onboarding_flow(
             msme=context.get("msme"),
             msmeCardUrl=context.get("msmeCardUrl"),
             utilityBillUrl=context.get("utilityBillUrl"),
-            ifscCode=context["ifscCode"],
-            accountNumber=context["accountNumber"],
-            pricePerHourPaise=100000,  # Default ₹1000
+            ifscCode=context.get("ifsc", "N/A"),
+            accountNumber=context.get("account_number", "N/A"),
+            pricePerHourPaise=price_val,
+            weekendPricePerHourPaise=weekend_price_val,
+            openingTime=context.get("opening_time", "06:00"),
+            closingTime=context.get("closing_time", "23:00"),
             latitude=context.get("latitude"),
             longitude=context.get("longitude"),
             address=context.get("address"),
-            searchKeywords=extract_search_keywords(context.get("address", ""), context["turfName"]),
+            searchKeywords=extract_search_keywords(context.get("address", ""), context.get("turfName", "")),
         )
         db.add(owner)
         await db.flush()
@@ -824,7 +791,8 @@ async def handle_onboarding_flow(
         await update_session(phone, "AWAITING_VERIFICATION", context, db)
 
         # Mask account number for display
-        masked_acct = "X" * (len(context["accountNumber"]) - 4) + context["accountNumber"][-4:]
+        acct = context.get("account_number", "XXXX")
+        masked_acct = "X" * max(0, len(acct) - 4) + acct[-4:] if len(acct) >= 4 else acct
 
         await whatsapp_service.send_text(
             phone,
@@ -849,6 +817,8 @@ async def handle_onboarding_flow(
                 title="New Turf Onboarding 🏟️",
                 body=f"Owner {owner.name} registered {owner.turfName}. Awaiting approval."
             )
+        except Exception as e:
+            logger.error(f"FCM Error: {e}")
         except Exception as e:
             logger.error(f"[Onboarding FCM] Failed: {e}")
 
@@ -1040,35 +1010,77 @@ async def handle_owner_commands(
 
     # Settings
     if lower in ("owner_settings", "/settings", "settings"):
-        masked_acct = ""
-        if owner.accountNumber:
-            masked_acct = "X" * (len(owner.accountNumber) - 4) + owner.accountNumber[-4:]
-        else:
-            masked_acct = "Not set"
-        await whatsapp_service.send_list(
+        # Launch Flow with pre-filled payload
+        payload = {
+            "screen": "MAIN_FORM",
+            "data": {
+                "name": owner.name or "",
+                "turf_name": owner.turfName or "",
+                "address": owner.address or "",
+                "location": owner.location or "",
+                "price": str(amount_service.paise_to_rupees(owner.pricePerHourPaise)),
+                "weekend_price": str(amount_service.paise_to_rupees(owner.weekendPricePerHourPaise)) if owner.weekendPricePerHourPaise else "0",
+                "opening_time": owner.openingTime or "",
+                "closing_time": owner.closingTime or "",
+                "bank_name": "", # Cannot be easily extracted since we don't store bank_name
+                "account_name": "",
+                "account_number": owner.accountNumber or "",
+                "ifsc": owner.ifscCode or ""
+            }
+        }
+        await whatsapp_service.send_flow(
             phone,
-            f"⚙️ *Settings — {owner.turfName}*\n\nCurrent Config:\n"
-            f"• Price/Hour: ₹{amount_service.paise_to_rupees(owner.pricePerHourPaise)}\n"
-            f"• Weekend Price: ₹{amount_service.paise_to_rupees(owner.weekendPricePerHourPaise) if owner.weekendPricePerHourPaise else 'Not set'}\n"
-            f"• Opening: {owner.openingTime}\n"
-            f"• Closing: {owner.closingTime}\n"
-            f"• IFSC: {owner.ifscCode or 'Not set'}\n"
-            f"• Account: {masked_acct}\n"
-            f"• Address: {owner.address or 'Not set'}\n",
-            "Change Settings",
-            [{
-                "title": "Settings",
-                "rows": [
-                    {"id": "set_price", "title": "💰 Change Price", "description": "Set regular hourly rate"},
-                    {"id": "set_weekend_price", "title": "🔥 Set Weekend Price", "description": "Rate for Sat & Sun"},
-                    {"id": "set_timing", "title": "⏰ Change Timings", "description": "Opening/closing hours"},
-                    {"id": "set_bank", "title": "🏦 Change Bank Details", "description": "IFSC & Account Number"},
-                    {"id": "block_slot", "title": "🔒 Block Slot", "description": "Block a time slot"},
-                    {"id": "unblock_slot", "title": "🔓 Unblock Slot", "description": "Unblock a time slot"},
-                    {"id": "get_qr", "title": "🖼️ Get Booking QR", "description": "Download turf QR Code"},
-                ],
-            }],
+            f"⚙️ *Settings — {owner.turfName}*\n\nClick below to update your Turf Configuration and Pricing:",
+            settings.WHATSAPP_FLOW_ID,
+            "FLOW_TOKEN_SETTINGS",
+            "⚙️ Open Settings",
+            mode="draft",
+            payload=payload
         )
+        return
+
+    # Handle NFM_REPLY for Settings Updates
+    if text.startswith("NFM_REPLY:"):
+        try:
+            response_data = json.loads(text.replace("NFM_REPLY:", "", 1))
+            
+            # Update Owner Record
+            if "name" in response_data: owner.name = sanitize_input(response_data["name"], 100)
+            if "turf_name" in response_data: owner.turfName = sanitize_input(response_data["turf_name"], 100)
+            if "address" in response_data: owner.address = sanitize_input(response_data["address"], 250)
+            if "location" in response_data: owner.location = sanitize_input(response_data["location"], 500)
+            
+            try:
+                if "price" in response_data: owner.pricePerHourPaise = int(response_data["price"]) * 100
+                if "weekend_price" in response_data: owner.weekendPricePerHourPaise = int(response_data["weekend_price"]) * 100
+            except ValueError:
+                pass
+                
+            if "opening_time" in response_data: owner.openingTime = sanitize_input(response_data["opening_time"], 50)
+            if "closing_time" in response_data: owner.closingTime = sanitize_input(response_data["closing_time"], 50)
+            if "account_number" in response_data: owner.accountNumber = sanitize_input(response_data["account_number"], 50)
+            if "ifsc" in response_data: owner.ifscCode = sanitize_input(response_data["ifsc"], 50)
+            
+            # Recalculate coordinates and search keywords
+            if owner.location:
+                coords = await extract_coordinates_from_url(owner.location)
+                if coords:
+                    owner.latitude = coords["latitude"]
+                    owner.longitude = coords["longitude"]
+            
+            owner.searchKeywords = extract_search_keywords(owner.address, owner.turfName)
+            
+            await db.commit()
+            
+            await whatsapp_service.send_text(
+                phone,
+                f"✅ *Settings Updated Successfully!*\n\nYour changes for *{owner.turfName}* have been saved."
+            )
+        except json.JSONDecodeError:
+            await whatsapp_service.send_text(phone, "❌ Failed to parse form data. Please try again.")
+        except Exception as e:
+            logger.error(f"[Settings Update] Error: {e}")
+            await whatsapp_service.send_text(phone, "❌ An error occurred while saving your settings.")
         return
 
     # Settings actions
